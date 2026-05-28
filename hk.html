@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/HorizonOfficia/hollow-knight@latest/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hollow Knight</title>
+  <link rel="preload" href="sharedassets8.resource" as="fetch">
+  <link rel="preload" href="sharedassets127.resource" as="fetch">
+  <link rel="preload" href="sharedassets400.resource" as="fetch">
+  <link rel="preload" href="sharedassets410.resource" as="fetch">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top, #111 0%, #050509 35%, #000 100%);
+      color: #fff;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    body {
+      position: relative;
+    }
+    #unity-canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: #000;
+    }
+    #loading-text,
+    #unity-mobile-warning {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      padding: 16px 22px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.78);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      z-index: 9998;
+      max-width: min(96vw, 420px);
+    }
+    #loading-text {
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font: 600 1.05rem/1.4 "Segoe UI", sans-serif;
+      letter-spacing: 0.04em;
+    }
+    #unity-mobile-warning {
+      top: 18px;
+      display: none;
+      font: 0.95rem/1.4 "Segoe UI", sans-serif;
+    }
+    .toolbar {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      gap: 12px;
+      z-index: 9999;
+    }
+    .toolbar button {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      padding: 0.9rem 1rem;
+      border-radius: 999px;
+      font: 600 0.95rem/1.2 "Segoe UI", sans-serif;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    .toolbar button:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-1px);
+    }
+    #fps-graph {
+      position: fixed;
+      bottom: 18px;
+      left: 18px;
+      width: 210px;
+      height: 82px;
+      background: rgba(8, 8, 12, 0.88);
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      transition: opacity 0.2s ease;
+    }
+    #fps-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 12px;
+    }
+    .savebtn {
+      border: none;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .savebtn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-text">Loading Hollow Knight…</div>
+  <div id="unity-mobile-warning">WebGL not supported on mobile</div>
+  <div class="toolbar" id="toolbar"></div>
+  <canvas id="unity-canvas"></canvas>
+  <div id="fps-graph" class="hidden"><canvas id="fps-canvas"></canvas></div>
+<script>
+const lt=document.getElementById("loading-text"),
+      cv=document.getElementById("unity-canvas"),
+      mw=document.getElementById("unity-mobile-warning"),
+      tb=document.getElementById("toolbar");
+
+let lb=0;
+const tm='912.81';
+
+// -------- Create FPS text element --------
+const fpsText = document.createElement("div");
+fpsText.style = `
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: monospace;
+  font-size: 18px;
+  background: rgba(0,0,0,0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 99999;
+`;
+fpsText.textContent = "FPS: 0";
+document.body.appendChild(fpsText);
+
+// -------- Create keystroke display element --------
+const keystrokeDisplay = document.createElement("div");
+keystrokeDisplay.style = `
+  position: fixed;
+  top: 50px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 50px;
+  max-width: calc(100vw - 40px);
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  z-index: 99999;
+`;
+document.body.appendChild(keystrokeDisplay);
+
+// -------- Track pressed keys --------
+const pressedKeys = new Set();
+
+document.addEventListener('keydown', (event) => {
+  pressedKeys.add(event.key);
+  updateKeystrokeDisplay();
+});
+
+document.addEventListener('keyup', (event) => {
+  pressedKeys.delete(event.key);
+  updateKeystrokeDisplay();
+});
+
+function updateKeystrokeDisplay() {
+  keystrokeDisplay.innerHTML = '';
+  Array.from(pressedKeys).forEach(key => {
+    const icon = document.createElement('img');
+    icon.src = makeKeyIcon(key);
+    icon.alt = key;
+    icon.title = prettyKeyName(key);
+    icon.style = `
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      object-fit: contain;
+    `;
+    keystrokeDisplay.appendChild(icon);
+  });
+}
+
+function prettyKeyName(key) {
+  if (key === ' ') return 'Space';
+  if (key === 'ArrowUp') return 'Arrow Up';
+  if (key === 'ArrowDown') return 'Arrow Down';
+  if (key === 'ArrowLeft') return 'Arrow Left';
+  if (key === 'ArrowRight') return 'Arrow Right';
+  return key.length === 1 ? key.toUpperCase() : key.replace(/^(.)/, s => s.toUpperCase());
+}
+
+function makeKeyIcon(key) {
+  const label = prettyKeyName(key);
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#20222A"/>
+      <stop offset="100%" stop-color="#2F323D"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="108" height="108" rx="28" ry="28" fill="url(#g)" stroke="rgba(255,255,255,0.16)" stroke-width="4"/>
+  ${arrowIcon(label)}
+  <text x="60" y="70" text-anchor="middle" fill="#F4F6FB" font-family="Segoe UI, system-ui, sans-serif" font-size="44" font-weight="700">${svgText(label)}</text>
+</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function arrowIcon(label) {
+  const arrows = {
+    'Arrow Up': '<path d="M60 28 L40 64 L52 64 L52 88 L68 88 L68 64 L80 64 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Down': '<path d="M60 92 L40 56 L52 56 L52 32 L68 32 L68 56 L80 56 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Left': '<path d="M28 60 L64 40 L64 52 L88 52 L88 68 L64 68 L64 80 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Right': '<path d="M92 60 L56 40 L56 52 L32 52 L32 68 L56 68 L56 80 Z" fill="#E7E9F3" opacity="0.85"/>'
+  };
+  return arrows[label] || '';
+}
+
+function svgText(label) {
+  if (/^Arrow/.test(label)) {
+    return '';
+  }
+  if (label.length > 2) {
+    return label.slice(0, 2);
+  }
+  return label;
+}
+
+// -------- FPS update loop --------
+let lastTime = performance.now();
+function updateFPS() {
+  const now = performance.now();
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  const fps = dt > 0 ? (1 / dt) : 60;
+  fpsText.textContent = "FPS: " + Math.round(fps);
+
+  requestAnimationFrame(updateFPS);
+}
+
+// -------- Mobile warning --------
+if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+  const m=document.createElement('meta');
+  m.name='viewport';
+  m.content='width=device-width,height=device-height,initial-scale=1,user-scalable=no,shrink-to-fit=yes';
+  document.head.appendChild(m);
+  mw.style.display="block";
+  setTimeout(()=>mw.style.display="none",5000);
+}
+
+// -------- Chunked fetch & merge --------
+async function fwp(u){
+  const r=await fetch(u),
+        rd=r.body.getReader(),
+        ch=[];
+  while(true){
+    const{done,value}=await rd.read();
+    if(done)break;
+    lb+=value.length;
+    ch.push(value);
+    lt.textContent=`${(lb/1048576).toFixed(2)} MB / ${tm} MB`;
+  }
+  return URL.createObjectURL(new Blob(ch));
+}
+async function mf(p){
+  const b=await Promise.all(p.map(fwp)),
+        bl=await Promise.all(b.map(u=>fetch(u).then(r=>r.blob())));
+  return URL.createObjectURL(new Blob(bl));
+}
+function gp(f,s,e){
+  return Array.from({length:e-s+1},(_,i)=>`${f}.part${s+i}`);
+}
+
+// -------- Unity bootstrapping --------
+(async()=>{
+  const [du,wu]=await Promise.all([
+    mf(gp("Build/hktruffled.data",1,45)),
+    mf(gp("Build/hktruffled.wasm",1,2))
+  ]);
+
+  const sc=document.createElement("script");
+  sc.src="Build/hktruffled.loader.js";
+  sc.onload=()=>{
+    const config = {
+      dataUrl: du,
+      frameworkUrl: "Build/hktruffled.framework.js",
+      codeUrl: wu,
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Team Cherry",
+      productName: "Hollow Knight",
+      productVersion: "1.0",
+      memory: 384 * 1024 * 1024,
+      useWebGL2: true,
+      webglContextAttributes: {
+        antialias: false,
+        alpha: false,
+        depth: true,
+        stencil: false,
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false,
+        desynchronized: true
+      }
+    };
+
+    createUnityInstance(cv, config).then(()=>{
+      lt.remove();
+      asb();
+      asib();
+      updateFPS();
+    }).catch(alert);
+  };
+  document.body.appendChild(sc);
+})();
+
+// -------- EXPORT SAVE (slot-based) --------
+function asb() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Download Save";
+  btn.onclick = savedownload;
+  tb.appendChild(btn);
+}
+
+function savedownload() {
+  const slot = prompt("Which slot do you want to export? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+
+  const openReq = indexedDB.open("/idbfs");
+
+  openReq.onsuccess = e => {
+    const db = e.target.result;
+    const tx = db.transaction("FILE_DATA", "readonly");
+    const store = tx.objectStore("FILE_DATA");
+
+    store.getAllKeys().onsuccess = ev => {
+      const keys = ev.target.result;
+      if (!keys.length) {
+        alert("No save data found.");
+        return;
+      }
+
+      const firstKey = keys[0];
+      const currentHash = firstKey.split("/")[2];
+      const key = `/idbfs/${currentHash}/user${slot}.dat`;
+
+      store.get(key).onsuccess = ev2 => {
+        const entry = ev2.target.result;
+        if (!entry) {
+          alert(`Slot ${slot} is empty.`);
+          return;
+        }
+
+        const blob = new Blob([entry.contents], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `user${slot}.dat`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+      };
+    };
+  };
+}
+
+// -------- IMPORT SAVE (slot-based) --------
+function asib() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Import Save";
+  btn.onclick = () => input.click();
+  tb.appendChild(btn);
+}
+
+const input = document.createElement("input");
+input.type = "file";
+input.accept = ".dat";
+input.style.display = "none";
+document.body.appendChild(input);
+
+input.onchange = () => {
+  const file = input.files[0];
+  if (!file) return;
+
+  const slot = prompt("Import into which slot? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const buffer = reader.result;
+    const bytes = new Uint8Array(buffer);
+
+    const req = indexedDB.open("/idbfs");
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction("FILE_DATA", "readwrite");
+      const store = tx.objectStore("FILE_DATA");
+
+      store.getAllKeys().onsuccess = ev => {
+        const keys = ev.target.result;
+        if (!keys.length) {
+          console.error("No keys found in FILE_DATA");
+          return;
+        }
+
+        const firstKey = keys[0];
+        const currentHash = firstKey.split("/")[2];
+        const key = `/idbfs/${currentHash}/user${slot}.dat`;
+
+        store.put(
+          {
+            timestamp: new Date().toISOString(),
+            mode: 33206,
+            contents: bytes
+          },
+          key
+        ).onsuccess = () => {
+          console.log(`Imported into slot ${slot}:`, key);
+          alert(`Save imported into Slot ${slot}. Refresh the page.`);
+        };
+      };
+    };
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+</script>
+
+</body>
+</html>
