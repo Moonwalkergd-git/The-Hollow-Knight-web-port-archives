@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/HorizonOfficia/hollow-knight@latest/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hollow Knight</title>
+  <link rel="preload" href="sharedassets8.resource" as="fetch">
+  <link rel="preload" href="sharedassets127.resource" as="fetch">
+  <link rel="preload" href="sharedassets400.resource" as="fetch">
+  <link rel="preload" href="sharedassets410.resource" as="fetch">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top, #111 0%, #050509 35%, #000 100%);
+      color: #fff;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    body {
+      position: relative;
+    }
+    #unity-canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: #000;
+    }
+    #loading-text,
+    #unity-mobile-warning {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      padding: 16px 22px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.78);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      z-index: 9998;
+      max-width: min(96vw, 420px);
+    }
+    #loading-text {
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font: 600 1.05rem/1.4 "Segoe UI", sans-serif;
+      letter-spacing: 0.04em;
+    }
+    #unity-mobile-warning {
+      top: 18px;
+      display: none;
+      font: 0.95rem/1.4 "Segoe UI", sans-serif;
+    }
+    .toolbar {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      gap: 12px;
+      z-index: 9999;
+    }
+    .toolbar button {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      padding: 0.9rem 1rem;
+      border-radius: 999px;
+      font: 600 0.95rem/1.2 "Segoe UI", sans-serif;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    .toolbar button:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-1px);
+    }
+    #fps-graph {
+      position: fixed;
+      bottom: 18px;
+      left: 18px;
+      width: 210px;
+      height: 82px;
+      background: rgba(8, 8, 12, 0.88);
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      transition: opacity 0.2s ease;
+    }
+    #fps-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 12px;
+    }
+    .savebtn {
+      border: none;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .savebtn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ===== LIVESPLIT TIMER ===== */
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+
+    #livesplit {
+      position: fixed;
+      top: 70px;
+      right: 18px;
+      width: 260px;
+      background: rgba(10, 10, 14, 0.93);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 6px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
+      z-index: 9997;
+      font-family: 'Share Tech Mono', monospace;
+      color: #e8e8e8;
+      user-select: none;
+      overflow: hidden;
+      transition: opacity 0.2s;
+    }
+    #livesplit.ls-hidden { opacity: 0; pointer-events: none; }
+
+    /* title bar */
+    #ls-titlebar {
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      padding: 5px 10px 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+    }
+    #ls-title-game {
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #aaa;
+      text-transform: uppercase;
+    }
+    #ls-title-category {
+      font-size: 9px;
+      color: #666;
+      letter-spacing: 0.06em;
+    }
+    #ls-close {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 14px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 2px;
+      transition: color 0.15s;
+    }
+    #ls-close:hover { color: #ccc; }
+
+    /* splits */
+    #ls-splits {
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .ls-split {
+      display: flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      min-height: 26px;
+      transition: background 0.15s;
+      position: relative;
+    }
+    .ls-split:last-child { border-bottom: none; }
+    .ls-split.ls-current-split {
+      background: rgba(255,255,255,0.07);
+    }
+    .ls-split.ls-current-split::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: #e8e8e8;
+    }
+    .ls-split-icon {
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      font-size: 12px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .ls-split-name {
+      flex: 1;
+      font-size: 11px;
+      color: #ccc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ls-split-delta {
+      font-size: 10px;
+      width: 52px;
+      text-align: right;
+      color: #888;
+      margin-right: 6px;
+    }
+    .ls-split-time {
+      font-size: 11px;
+      width: 58px;
+      text-align: right;
+      color: #c0c0c0;
+    }
+    .ls-split-time.ls-gold { color: #f0c040; }
+    .ls-split-time.ls-ahead { color: #5ec45e; }
+    .ls-split-time.ls-behind { color: #c05050; }
+    .ls-split-time.ls-ahead-losing { color: #a0e080; }
+    .ls-split-time.ls-behind-gaining { color: #e08080; }
+    .ls-delta.ls-ahead { color: #5ec45e; }
+    .ls-delta.ls-behind { color: #c05050; }
+    .ls-delta.ls-gold { color: #f0c040; }
+
+    /* sum of best / pb row */
+    #ls-sumofbest {
+      padding: 3px 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #555;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    #ls-sumofbest span:last-child { color: #888; }
+
+    /* big timer */
+    #ls-timer-row {
+      padding: 6px 10px 4px;
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.3);
+    }
+    #ls-time-main {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 32px;
+      color: #e8e8e8;
+      letter-spacing: -0.01em;
+      line-height: 1;
+    }
+    #ls-time-ms {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 18px;
+      color: #e8e8e8;
+      opacity: 0.7;
+      line-height: 1;
+    }
+    #ls-time-main.ls-running { color: #e8e8e8; }
+    #ls-time-main.ls-paused { color: #888; }
+    #ls-time-main.ls-finished { color: #f0c040; }
+    #ls-time-main.ls-gold-finish { color: #f0c040; }
+
+    /* previous segment */
+    #ls-prev-segment {
+      padding: 3px 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #555;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    #ls-prev-seg-val { color: #888; }
+
+    /* controls */
+    #ls-controls {
+      display: flex;
+      gap: 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    #ls-controls button {
+      flex: 1;
+      background: none;
+      border: none;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      color: #888;
+      font-size: 16px;
+      padding: 7px 0;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: monospace;
+    }
+    #ls-controls button:last-child { border-right: none; }
+    #ls-controls button:hover { background: rgba(255,255,255,0.07); color: #ddd; }
+    #ls-controls button:active { background: rgba(255,255,255,0.13); }
+    #ls-controls button:disabled { opacity: 0.25; cursor: default; }
+
+    /* keybind hint */
+    #ls-keyhint {
+      padding: 3px 10px;
+      font-size: 9px;
+      color: #3a3a3a;
+      text-align: center;
+      letter-spacing: 0.06em;
+    }
+
+    /* toggle button in toolbar */
+    #ls-toggle-btn { font-size: 18px !important; padding: 0.6rem 0.8rem !important; }
+  </style>
+</head>
+<body>
+  <div id="loading-text">Loading Hollow Knight…</div>
+  <div id="unity-mobile-warning">WebGL not supported on mobile</div>
+  <div class="toolbar" id="toolbar"></div>
+  <canvas id="unity-canvas"></canvas>
+  <div id="fps-graph" class="hidden"><canvas id="fps-canvas"></canvas></div>
+
+  <!-- ===== LIVESPLIT TIMER PANEL ===== -->
+  <div id="livesplit">
+    <div id="ls-titlebar">
+      <div>
+        <div id="ls-title-game">Hollow Knight</div>
+        <div id="ls-title-category">Any% — NMG</div>
+      </div>
+      <button id="ls-close" title="Hide timer">✕</button>
+    </div>
+    <div id="ls-splits"></div>
+    <div id="ls-sumofbest">
+      <span>Sum of Best</span><span id="ls-sob-val">—</span>
+    </div>
+    <div id="ls-prev-segment">
+      <span>Previous Segment</span><span id="ls-prev-seg-val">—</span>
+    </div>
+    <div id="ls-timer-row">
+      <span id="ls-time-main">0:00:00</span><span id="ls-time-ms">.00</span>
+    </div>
+    <div id="ls-controls">
+      <button id="ls-btn-split"   title="Start / Split [Space]">▶</button>
+      <button id="ls-btn-reset"   title="Reset [R]" disabled>↺</button>
+      <button id="ls-btn-undo"    title="Undo split [U]" disabled>⬅</button>
+      <button id="ls-btn-skip"    title="Skip split [S]" disabled>⏭</button>
+      <button id="ls-btn-pause"   title="Pause [P]" disabled>⏸</button>
+    </div>
+    <div id="ls-keyhint">SPACE · R · U · S · P</div>
+  </div>
+<script>
+const lt=document.getElementById("loading-text"),
+      cv=document.getElementById("unity-canvas"),
+      mw=document.getElementById("unity-mobile-warning"),
+      tb=document.getElementById("toolbar");
+
+let lb=0;
+const tm='912.81';
+
+// -------- Create FPS text element --------
+const fpsText = document.createElement("div");
+fpsText.style = `
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: monospace;
+  font-size: 18px;
+  background: rgba(0,0,0,0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 99999;
+`;
+fpsText.textContent = "FPS: 0";
+document.body.appendChild(fpsText);
+
+// -------- Create keystroke display element --------
+const keystrokeDisplay = document.createElement("div");
+keystrokeDisplay.style = `
+  position: fixed;
+  top: 50px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 50px;
+  max-width: calc(100vw - 40px);
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  z-index: 99999;
+`;
+document.body.appendChild(keystrokeDisplay);
+
+// -------- Track pressed keys --------
+const pressedKeys = new Set();
+
+document.addEventListener('keydown', (event) => {
+  pressedKeys.add(event.key);
+  updateKeystrokeDisplay();
+});
+
+document.addEventListener('keyup', (event) => {
+  pressedKeys.delete(event.key);
+  updateKeystrokeDisplay();
+});
+
+function updateKeystrokeDisplay() {
+  keystrokeDisplay.innerHTML = '';
+  Array.from(pressedKeys).forEach(key => {
+    const icon = document.createElement('img');
+    icon.src = makeKeyIcon(key);
+    icon.alt = key;
+    icon.title = prettyKeyName(key);
+    icon.style = `
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      object-fit: contain;
+    `;
+    keystrokeDisplay.appendChild(icon);
+  });
+}
+
+function prettyKeyName(key) {
+  if (key === ' ') return 'Space';
+  if (key === 'ArrowUp') return 'Arrow Up';
+  if (key === 'ArrowDown') return 'Arrow Down';
+  if (key === 'ArrowLeft') return 'Arrow Left';
+  if (key === 'ArrowRight') return 'Arrow Right';
+  return key.length === 1 ? key.toUpperCase() : key.replace(/^(.)/, s => s.toUpperCase());
+}
+
+function makeKeyIcon(key) {
+  const label = prettyKeyName(key);
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#20222A"/>
+      <stop offset="100%" stop-color="#2F323D"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="108" height="108" rx="28" ry="28" fill="url(#g)" stroke="rgba(255,255,255,0.16)" stroke-width="4"/>
+  ${arrowIcon(label)}
+  <text x="60" y="70" text-anchor="middle" fill="#F4F6FB" font-family="Segoe UI, system-ui, sans-serif" font-size="44" font-weight="700">${svgText(label)}</text>
+</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function arrowIcon(label) {
+  const arrows = {
+    'Arrow Up': '<path d="M60 28 L40 64 L52 64 L52 88 L68 88 L68 64 L80 64 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Down': '<path d="M60 92 L40 56 L52 56 L52 32 L68 32 L68 56 L80 56 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Left': '<path d="M28 60 L64 40 L64 52 L88 52 L88 68 L64 68 L64 80 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Right': '<path d="M92 60 L56 40 L56 52 L32 52 L32 68 L56 68 L56 80 Z" fill="#E7E9F3" opacity="0.85"/>'
+  };
+  return arrows[label] || '';
+}
+
+function svgText(label) {
+  if (/^Arrow/.test(label)) {
+    return '';
+  }
+  if (label.length > 2) {
+    return label.slice(0, 2);
+  }
+  return label;
+}
+
+// -------- FPS update loop --------
+let lastTime = performance.now();
+function updateFPS() {
+  const now = performance.now();
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  const fps = dt > 0 ? (1 / dt) : 60;
+  fpsText.textContent = "FPS: " + Math.round(fps);
+
+  requestAnimationFrame(updateFPS);
+}
+
+// -------- Mobile warning --------
+if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+  const m=document.createElement('meta');
+  m.name='viewport';
+  m.content='width=device-width,height=device-height,initial-scale=1,user-scalable=no,shrink-to-fit=yes';
+  document.head.appendChild(m);
+  mw.style.display="block";
+  setTimeout(()=>mw.style.display="none",5000);
+}
+
+// -------- Chunked fetch & merge --------
+async function fwp(u){
+  const r=await fetch(u),
+        rd=r.body.getReader(),
+        ch=[];
+  while(true){
+    const{done,value}=await rd.read();
+    if(done)break;
+    lb+=value.length;
+    ch.push(value);
+    lt.textContent=`${(lb/1048576).toFixed(2)} MB / ${tm} MB`;
+  }
+  return URL.createObjectURL(new Blob(ch));
+}
+async function mf(p){
+  const b=await Promise.all(p.map(fwp)),
+        bl=await Promise.all(b.map(u=>fetch(u).then(r=>r.blob())));
+  return URL.createObjectURL(new Blob(bl));
+}
+function gp(f,s,e){
+  return Array.from({length:e-s+1},(_,i)=>`${f}.part${s+i}`);
+}
+
+// -------- Unity bootstrapping --------
+(async()=>{
+  const [du,wu]=await Promise.all([
+    mf(gp("Build/hktruffled.data",1,45)),
+    mf(gp("Build/hktruffled.wasm",1,2))
+  ]);
+
+  const sc=document.createElement("script");
+  sc.src="Build/hktruffled.loader.js";
+  sc.onload=()=>{
+    const config = {
+      dataUrl: du,
+      frameworkUrl: "Build/hktruffled.framework.js",
+      codeUrl: wu,
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Team Cherry",
+      productName: "Hollow Knight",
+      productVersion: "1.0",
+      memory: 384 * 1024 * 1024,
+      useWebGL2: true,
+      webglContextAttributes: {
+        antialias: false,
+        alpha: false,
+        depth: true,
+        stencil: false,
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false,
+        desynchronized: true
+      }
+    };
+
+    createUnityInstance(cv, config).then(()=>{
+      lt.remove();
+      asb();
+      asib();
+      updateFPS();
+    }).catch(alert);
+  };
+  document.body.appendChild(sc);
+})();
+
+// -------- EXPORT SAVE (slot-based) --------
+function asb() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Download Save";
+  btn.onclick = savedownload;
+  tb.appendChild(btn);
+}
+
+function savedownload() {
+  const slot = prompt("Which slot do you want to export? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+
+  const openReq = indexedDB.open("/idbfs");
+
+  openReq.onsuccess = e => {
+    const db = e.target.result;
+    const tx = db.transaction("FILE_DATA", "readonly");
+    const store = tx.objectStore("FILE_DATA");
+
+    store.getAllKeys().onsuccess = ev => {
+      const keys = ev.target.result;
+      if (!keys.length) {
+        alert("No save data found.");
+        return;
+      }
+
+      const firstKey = keys[0];
+      const currentHash = firstKey.split("/")[2];
+      const key = `/idbfs/${currentHash}/user${slot}.dat`;
+
+      store.get(key).onsuccess = ev2 => {
+        const entry = ev2.target.result;
+        if (!entry) {
+          alert(`Slot ${slot} is empty.`);
+          return;
+        }
+
+        const blob = new Blob([entry.contents], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `user${slot}.dat`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+      };
+    };
+  };
+}
+
+// -------- IMPORT SAVE (slot-based) --------
+function asib() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Import Save";
+  btn.onclick = () => input.click();
+  tb.appendChild(btn);
+}
+
+const input = document.createElement("input");
+input.type = "file";
+input.accept = ".dat";
+input.style.display = "none";
+document.body.appendChild(input);
+
+input.onchange = () => {
+  const file = input.files[0];
+  if (!file) return;
+
+  const slot = prompt("Import into which slot? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const buffer = reader.result;
+    const bytes = new Uint8Array(buffer);
+
+    const req = indexedDB.open("/idbfs");
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction("FILE_DATA", "readwrite");
+      const store = tx.objectStore("FILE_DATA");
+
+      store.getAllKeys().onsuccess = ev => {
+        const keys = ev.target.result;
+        if (!keys.length) {
+          console.error("No keys found in FILE_DATA");
+          return;
+        }
+
+        const firstKey = keys[0];
+        const currentHash = firstKey.split("/")[2];
+        const key = `/idbfs/${currentHash}/user${slot}.dat`;
+
+        store.put(
+          {
+            timestamp: new Date().toISOString(),
+            mode: 33206,
+            contents: bytes
+          },
+          key
+        ).onsuccess = () => {
+          console.log(`Imported into slot ${slot}:`, key);
+          alert(`Save imported into Slot ${slot}. Refresh the page.`);
+        };
+      };
+    };
+  };
+
+  // ======================================================
+// LIVESPLIT-STYLE SPEEDRUN TIMER
+// ======================================================
+(function() {
+  // ---- Config: splits for HK Any% NMG ----
+  const SPLIT_DEFS = [
+    { name: "Ancestral Mound",    icon: "🦋", pb: null, gold: null },
+    { name: "Crossroads Boss",    icon: "💀", pb: null, gold: null },
+    { name: "Fog Canyon",         icon: "🌫️", pb: null, gold: null },
+    { name: "Queen's Gardens",    icon: "🌿", pb: null, gold: null },
+    { name: "City of Tears",      icon: "🌧️", pb: null, gold: null },
+    { name: "Watcher's Spire",    icon: "👁️", pb: null, gold: null },
+    { name: "White Palace",       icon: "🏛️", pb: null, gold: null },
+    { name: "The Hollow Knight",  icon: "⚔️", pb: null, gold: null },
+  ];
+
+  // ---- State ----
+  let state = 'idle';   // idle | running | paused | finished
+  let startTime = 0;
+  let pauseOffset = 0;
+  let pauseStart = 0;
+  let currentSplit = 0;
+  let splitTimes = [];       // elapsed ms at each split
+  let splitSegTimes = [];    // segment times (diff between splits)
+  let bestSegments = SPLIT_DEFS.map(() => null); // gold times in ms
+  let pbSplits = SPLIT_DEFS.map(() => null);     // pb split times in ms
+  let rAF = null;
+
+  // ---- Elements ----
+  const panel       = document.getElementById('livesplit');
+  const splitsEl    = document.getElementById('ls-splits');
+  const mainEl      = document.getElementById('ls-time-main');
+  const msEl        = document.getElementById('ls-time-ms');
+  const sobEl       = document.getElementById('ls-sob-val');
+  const prevSegEl   = document.getElementById('ls-prev-seg-val');
+  const btnSplit    = document.getElementById('ls-btn-split');
+  const btnReset    = document.getElementById('ls-btn-reset');
+  const btnUndo     = document.getElementById('ls-btn-undo');
+  const btnSkip     = document.getElementById('ls-btn-skip');
+  const btnPause    = document.getElementById('ls-btn-pause');
+  const lsClose     = document.getElementById('ls-close');
+
+  // ---- Toolbar toggle ----
+  const tb2 = document.getElementById("toolbar");
+  const toggleBtn = document.createElement("button");
+  toggleBtn.id = "ls-toggle-btn";
+  toggleBtn.title = "Toggle speedrun timer";
+  toggleBtn.textContent = "⏱";
+  toggleBtn.onclick = () => panel.classList.toggle('ls-hidden');
+  tb2.appendChild(toggleBtn);
+  lsClose.onclick = () => panel.classList.add('ls-hidden');
+
+  // ---- Draggable ----
+  const titlebar = document.getElementById('ls-titlebar');
+  let drag = false, dx = 0, dy = 0;
+  titlebar.addEventListener('mousedown', e => {
+    drag = true;
+    dx = e.clientX - panel.offsetLeft;
+    dy = e.clientY - panel.offsetTop;
+  });
+  document.addEventListener('mousemove', e => {
+    if (!drag) return;
+    panel.style.right = 'auto';
+    panel.style.left = Math.max(0, e.clientX - dx) + 'px';
+    panel.style.top  = Math.max(0, e.clientY - dy) + 'px';
+  });
+  document.addEventListener('mouseup', () => drag = false);
+
+  // ---- Time formatting ----
+  function fmtMs(ms, showSign) {
+    if (ms == null) return '—';
+    const neg = ms < 0;
+    const abs = Math.abs(ms);
+    const cs = Math.floor(abs / 10) % 100;
+    const s  = Math.floor(abs / 1000) % 60;
+    const m  = Math.floor(abs / 60000) % 60;
+    const h  = Math.floor(abs / 3600000);
+    const sign = showSign ? (neg ? '−' : '+') : (neg ? '−' : '');
+    if (h > 0) return `${sign}${h}:${pad(m)}:${pad(s)}`;
+    return `${sign}${m}:${pad(s)}`;
+  }
+  function fmtFull(ms) {
+    if (ms == null) return '—';
+    const abs = Math.abs(ms);
+    const cs = Math.floor(abs / 10) % 100;
+    const s  = Math.floor(abs / 1000) % 60;
+    const m  = Math.floor(abs / 60000) % 60;
+    const h  = Math.floor(abs / 3600000);
+    const timePart = h > 0
+      ? `${h}:${pad(m)}:${pad(s)}`
+      : `${m}:${pad(s)}`;
+    return { main: timePart, ms: '.' + pad(cs) };
+  }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  // ---- Build splits DOM ----
+  function buildSplits() {
+    splitsEl.innerHTML = '';
+    SPLIT_DEFS.forEach((def, i) => {
+      const row = document.createElement('div');
+      row.className = 'ls-split';
+      row.id = 'ls-split-' + i;
+      row.innerHTML = `
+        <span class="ls-split-icon">${def.icon}</span>
+        <span class="ls-split-name">${def.name}</span>
+        <span class="ls-split-delta" id="ls-delta-${i}"></span>
+        <span class="ls-split-time"  id="ls-stime-${i}">—</span>
+      `;
+      splitsEl.appendChild(row);
+    });
+  }
+  buildSplits();
+
+  // ---- Update split highlight ----
+  function highlightSplit(idx) {
+    document.querySelectorAll('.ls-split').forEach((el, i) => {
+      el.classList.toggle('ls-current-split', i === idx);
+    });
+  }
+
+  // ---- Update completed split display ----
+  function updateSplitDisplay(idx, elapsedMs) {
+    const stEl = document.getElementById('ls-stime-' + idx);
+    const dtEl = document.getElementById('ls-delta-' + idx);
+    const fmt = fmtFull(elapsedMs);
+    stEl.textContent = fmt.main;
+    stEl.className = 'ls-split-time';
+
+    // seg time for this split
+    const segMs = idx === 0 ? elapsedMs : elapsedMs - splitTimes[idx - 1];
+
+    // delta vs PB split
+    const pbMs = pbSplits[idx];
+    let deltaClass = '';
+    let deltaText = '';
+    if (pbMs != null) {
+      const delta = elapsedMs - pbMs;
+      deltaText = fmtMs(delta, true);
+      if (delta < 0) { deltaClass = 'ls-ahead'; stEl.classList.add('ls-ahead'); }
+      else           { deltaClass = 'ls-behind'; stEl.classList.add('ls-behind'); }
+    }
+
+    // gold check
+    if (bestSegments[idx] == null || segMs < bestSegments[idx]) {
+      bestSegments[idx] = segMs;
+      stEl.classList.remove('ls-ahead', 'ls-behind');
+      stEl.classList.add('ls-gold');
+      deltaClass = 'ls-gold';
+      deltaText = deltaText || '−Best';
+    }
+
+    dtEl.textContent = deltaText;
+    dtEl.className = 'ls-split-delta ' + deltaClass;
+  }
+
+  // ---- Sum of best ----
+  function updateSob() {
+    const total = bestSegments.reduce((acc, v) => v != null ? acc + v : acc, 0);
+    const count = bestSegments.filter(v => v != null).length;
+    sobEl.textContent = count > 0 ? fmtFull(total).main : '—';
+  }
+
+  // ---- Previous segment ----
+  function updatePrevSeg(idx) {
+    if (idx <= 0) { prevSegEl.textContent = '—'; return; }
+    const prev = idx - 1;
+    const segMs = prev === 0 ? splitTimes[0] : splitTimes[prev] - splitTimes[prev - 1];
+    const gold = bestSegments[prev];
+    if (gold != null) {
+      const delta = segMs - gold;
+      prevSegEl.textContent = fmtMs(delta, true);
+      prevSegEl.style.color = delta < 0 ? '#f0c040' : '#c08080';
+    } else {
+      prevSegEl.textContent = fmtMs(segMs, false);
+      prevSegEl.style.color = '#888';
+    }
+  }
+
+  // ---- Main timer display loop ----
+  function elapsed() {
+    if (state === 'idle' || state === 'finished') return pauseOffset;
+    if (state === 'paused') return pauseOffset;
+    return Date.now() - startTime + pauseOffset;
+  }
+
+  function tick() {
+    const ms = elapsed();
+    const fmt = fmtFull(ms);
+    mainEl.textContent = fmt.main;
+    msEl.textContent   = fmt.ms;
+
+    if (state === 'running') rAF = requestAnimationFrame(tick);
+  }
+
+  // ---- Controls ----
+  function doStart() {
+    state = 'running';
+    startTime = Date.now();
+    pauseOffset = 0;
+    currentSplit = 0;
+    splitTimes = [];
+    splitSegTimes = [];
+    highlightSplit(0);
+    mainEl.className = 'ls-running';
+    btnSplit.textContent = '⬇';
+    btnReset.disabled = false;
+    btnUndo.disabled = true;
+    btnSkip.disabled = false;
+    btnPause.disabled = false;
+    rAF = requestAnimationFrame(tick);
+  }
+
+  function doSplit() {
+    if (state !== 'running') return;
+    const ms = elapsed();
+    splitTimes[currentSplit] = ms;
+    updateSplitDisplay(currentSplit, ms);
+    updatePrevSeg(currentSplit + 1);
+    updateSob();
+
+    currentSplit++;
+    if (currentSplit >= SPLIT_DEFS.length) {
+      // finished
+      state = 'finished';
+      cancelAnimationFrame(rAF);
+      pauseOffset = ms;
+      mainEl.className = 'ls-finished';
+      btnSplit.textContent = '▶';
+      btnSplit.disabled = true;
+      btnSkip.disabled = true;
+      btnPause.disabled = true;
+      btnUndo.disabled = false;
+      highlightSplit(-1);
+      // save as PB if first finish or faster
+      const lastPb = pbSplits[SPLIT_DEFS.length - 1];
+      if (lastPb == null || ms < lastPb) {
+        pbSplits = [...splitTimes];
+      }
+    } else {
+      highlightSplit(currentSplit);
+      btnUndo.disabled = false;
+    }
+  }
+
+  function doReset() {
+    cancelAnimationFrame(rAF);
+    state = 'idle';
+    pauseOffset = 0;
+    currentSplit = 0;
+    splitTimes = [];
+    mainEl.textContent = '0:00:00';
+    msEl.textContent   = '.00';
+    mainEl.className   = '';
+    btnSplit.textContent = '▶';
+    btnSplit.disabled  = false;
+    btnReset.disabled  = true;
+    btnUndo.disabled   = true;
+    btnSkip.disabled   = true;
+    btnPause.disabled  = true;
+    highlightSplit(-1);
+    prevSegEl.textContent = '—';
+    prevSegEl.style.color = '#888';
+    // clear split displays
+    SPLIT_DEFS.forEach((_, i) => {
+      document.getElementById('ls-stime-' + i).textContent = '—';
+      document.getElementById('ls-stime-' + i).className = 'ls-split-time';
+      document.getElementById('ls-delta-' + i).textContent = '';
+      document.getElementById('ls-delta-' + i).className = 'ls-split-delta';
+    });
+    document.querySelectorAll('.ls-split').forEach(el => el.classList.remove('ls-current-split'));
+  }
+
+  function doUndo() {
+    if (currentSplit <= 0) return;
+    currentSplit--;
+    splitTimes.splice(currentSplit, 1);
+    // clear display for that split
+    document.getElementById('ls-stime-' + currentSplit).textContent = '—';
+    document.getElementById('ls-stime-' + currentSplit).className = 'ls-split-time';
+    document.getElementById('ls-delta-' + currentSplit).textContent = '';
+    document.getElementById('ls-delta-' + currentSplit).className = 'ls-split-delta';
+    if (state === 'finished') {
+      state = 'running';
+      startTime = Date.now() - pauseOffset;
+      mainEl.className = 'ls-running';
+      btnSplit.disabled = false;
+      btnSkip.disabled  = false;
+      btnPause.disabled = false;
+      rAF = requestAnimationFrame(tick);
+    }
+    highlightSplit(currentSplit);
+    btnUndo.disabled = currentSplit <= 0;
+    updatePrevSeg(currentSplit);
+  }
+
+  function doSkip() {
+    if (state !== 'running') return;
+    document.getElementById('ls-stime-' + currentSplit).textContent = '—';
+    document.getElementById('ls-delta-' + currentSplit).textContent = '—';
+    currentSplit++;
+    if (currentSplit >= SPLIT_DEFS.length) {
+      doSplit(); // trigger finish with skip
+      return;
+    }
+    highlightSplit(currentSplit);
+    btnUndo.disabled = false;
+  }
+
+  function doPause() {
+    if (state === 'running') {
+      state = 'paused';
+      pauseOffset = elapsed();
+      cancelAnimationFrame(rAF);
+      mainEl.className = 'ls-paused';
+      btnPause.textContent = '▶';
+    } else if (state === 'paused') {
+      state = 'running';
+      startTime = Date.now();
+      mainEl.className = 'ls-running';
+      btnPause.textContent = '⏸';
+      rAF = requestAnimationFrame(tick);
+    }
+  }
+
+  // ---- Button wiring ----
+  btnSplit.onclick = () => { if (state === 'idle') doStart(); else doSplit(); };
+  btnReset.onclick  = doReset;
+  btnUndo.onclick   = doUndo;
+  btnSkip.onclick   = doSkip;
+  btnPause.onclick  = doPause;
+
+  // ---- Keyboard shortcuts (only when not typing) ----
+  document.addEventListener('keydown', e => {
+    // Don't intercept if a prompt/dialog is open
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    switch(e.code) {
+      case 'Space':
+        if (!btnSplit.disabled) { e.preventDefault(); btnSplit.click(); }
+        break;
+      case 'KeyR':
+        if (!btnReset.disabled) { e.preventDefault(); btnReset.click(); }
+        break;
+      case 'KeyU':
+        if (!btnUndo.disabled) { e.preventDefault(); btnUndo.click(); }
+        break;
+      case 'KeyS':
+        if (!btnSkip.disabled) { e.preventDefault(); btnSkip.click(); }
+        break;
+      case 'KeyP':
+        if (!btnPause.disabled) { e.preventDefault(); btnPause.click(); }
+        break;
+    }
+  });
+
+  // ---- Init ----
+  updateSob();
+})();
+// ======================================================
+</script>
+
+</body>
+</html>
