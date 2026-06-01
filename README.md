@@ -7,4 +7,6 @@ Dreamers were fixed by the Horiza official.
 
 808 mb was taken from bog.
 
-Modded hk ports by Moonwalkergd-git ( me ) 
+W bog for making free hollow knight.
+
+Modded hk ports by Moonwalkergd-git ( me )  +  CHOCOLATE68 (random kid)
