@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/HorizonOfficia/hollow-knight@latest/">
+  <meta charset="utf-8">
+  <title>Hollow Knight</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#000;overflow:hidden}
+    #loading-text{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font:24px Arial}
+    #unity-canvas{width:100vw;height:100vh;display:block}
+    #unity-mobile-warning{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;background:rgba(0,0,0,.9);padding:20px;border-radius:8px;font:14px Arial}
+    #fps-graph{position:fixed;top:12px;left:12px;width:200px;height:70px;background:rgba(0,0,0,.8);border-radius:6px;padding:10px;z-index:9999;transition:.3s}
+    #fps-canvas{width:100%;height:100%;display:block}
+    .savebtn{display:none}/* replaced by themed panel */
+    .hidden{opacity:0;pointer-events:none}
+
+    #save-panel {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 10000;
+      font-family: 'Exo 2', sans-serif;
+    }
+
+    .save-panel-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(10,10,14,0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      backdrop-filter: blur(12px) saturate(1.4);
+      -webkit-backdrop-filter: blur(12px) saturate(1.4);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.6);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .save-panel-btn:hover {
+      background: rgba(20,20,28,0.75);
+      color: #fff;
+    }
+
+    .save-panel-btn .btn-icon {
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    #btn-download:hover { border-color: rgba(77,195,247,0.35); }
+    #btn-download:hover .btn-icon { color: #4fc3f7; opacity: 1; }
+    #btn-import:hover  { border-color: rgba(61,220,132,0.35); }
+    #btn-import:hover  .btn-icon { color: #3ddc84; opacity: 1; }
+
+    /* ── LiveSplit-style Timer ── */
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;500;700&display=swap');
+
+    #ls-timer {
+      position: fixed;
+      top: 60px;
+      right: 12px;
+      width: 220px;
+      background: rgba(10, 10, 14, 0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      backdrop-filter: blur(12px) saturate(1.4);
+      -webkit-backdrop-filter: blur(12px) saturate(1.4);
+      box-shadow: 0 4px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+      z-index: 10000;
+      font-family: 'Exo 2', sans-serif;
+      overflow: hidden;
+      user-select: none;
+      cursor: default;
+    }
+
+    #ls-title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    #ls-game-name {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+    }
+
+    #ls-controls {
+      display: flex;
+      gap: 5px;
+    }
+
+    .ls-ctrl-btn {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 0;
+      transition: opacity 0.2s;
+      opacity: 0.7;
+    }
+    .ls-ctrl-btn:hover { opacity: 1; }
+    #ls-btn-start  { background: #3ddc84; }
+    #ls-btn-split  { background: #4fc3f7; }
+    #ls-btn-reset  { background: #ef5350; }
+    #ls-btn-hide   { background: rgba(255,255,255,0.25); }
+
+    #ls-show-tab {
+      position: fixed;
+      top: 60px;
+      right: 0;
+      background: rgba(10,10,14,0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-right: none;
+      border-radius: 6px 0 0 6px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: rgba(255,255,255,0.5);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 6px;
+      writing-mode: vertical-rl;
+      cursor: pointer;
+      z-index: 10000;
+      display: none;
+      transition: color 0.2s, background 0.2s;
+    }
+    #ls-show-tab:hover {
+      color: #fff;
+      background: rgba(10,10,14,0.8);
+    }
+
+    #ls-splits-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #ls-splits-list::-webkit-scrollbar { width: 3px; }
+    #ls-splits-list::-webkit-scrollbar-track { background: transparent; }
+    #ls-splits-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .ls-split-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 10px 4px 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.15s;
+    }
+
+    .ls-split-row.ls-current {
+      background: rgba(255,255,255,0.07);
+    }
+
+    .ls-split-row.ls-done-good .ls-split-delta { color: #3ddc84; }
+    .ls-split-row.ls-done-bad  .ls-split-delta { color: #ef5350; }
+    .ls-split-row.ls-done-gold .ls-split-delta { color: #ffd54f; }
+
+    .ls-split-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 3px;
+      margin-right: 6px;
+      flex-shrink: 0;
+      object-fit: cover;
+      opacity: 0.85;
+      cursor: pointer;
+      transition: opacity 0.2s, box-shadow 0.2s;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .ls-split-icon:hover {
+      opacity: 1;
+      box-shadow: 0 0 0 1px rgba(77,195,247,0.5);
+    }
+
+    .ls-split-icon-placeholder {
+      width: 22px;
+      height: 22px;
+      border-radius: 3px;
+      margin-right: 6px;
+      flex-shrink: 0;
+      border: 1px dashed rgba(255,255,255,0.15);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: rgba(255,255,255,0.2);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .ls-split-icon-placeholder:hover {
+      border-color: rgba(77,195,247,0.5);
+      color: rgba(77,195,247,0.7);
+    }
+
+    .ls-split-name {
+      font-size: 11px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.75);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ls-split-name::before {
+      content: '▶ ';
+      opacity: 0;
+      font-size: 8px;
+    }
+
+    .ls-split-row.ls-current .ls-split-name::before {
+      opacity: 1;
+      color: #4fc3f7;
+    }
+
+    .ls-split-pb {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: rgba(255,255,255,0.3);
+      margin-right: 6px;
+    }
+
+    .ls-split-delta {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      min-width: 46px;
+      text-align: right;
+      color: rgba(255,255,255,0.25);
+    }
+
+    #ls-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+      margin: 0;
+    }
+
+    #ls-main-time-wrap {
+      padding: 6px 10px 2px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+    }
+
+    #ls-main-time {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 30px;
+      font-weight: 400;
+      color: #fff;
+      letter-spacing: 0.02em;
+      transition: color 0.3s;
+      text-shadow: 0 0 20px rgba(77,195,247,0.35);
+    }
+
+    #ls-main-time.ls-time-running { color: #e0f7ff; }
+    #ls-main-time.ls-time-stopped { color: rgba(255,255,255,0.55); }
+    #ls-main-time.ls-time-paused  { color: #ffd54f; }
+
+    #ls-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 10px 7px;
+    }
+
+    #ls-sum-label {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+    }
+
+    #ls-sum-time {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+    }
+
+    #ls-kb-hint {
+      font-size: 8px;
+      color: rgba(255,255,255,0.2);
+      letter-spacing: 0.08em;
+    }
+
+    #ls-edit-bar {
+      display: flex;
+      gap: 5px;
+      padding: 5px 10px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    #ls-edit-bar button {
+      flex: 1;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      color: rgba(255,255,255,0.6);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      padding: 4px 0;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    #ls-edit-bar button:hover {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
+
+    #ls-btn-add:hover  { border-color: rgba(61,220,132,0.4); color: #3ddc84; }
+    #ls-btn-remove:hover { border-color: rgba(239,83,80,0.4); color: #ef5350; }
+
+    /* collapsed state */
+    #ls-timer.ls-collapsed #ls-splits-list,
+    #ls-timer.ls-collapsed #ls-edit-bar,
+    #ls-timer.ls-collapsed #ls-divider,
+    #ls-timer.ls-collapsed #ls-footer { display: none; }
+    #ls-timer.ls-collapsed #ls-main-time { font-size: 22px; }
+    #ls-timer.ls-collapsed #ls-main-time-wrap { padding: 4px 10px; }
+  </style>
+</head>
+<body>
+	<link rel="preload" href="sharedassets8.resource" as="fetch">
+	<link rel="preload" href="sharedassets127.resource" as="fetch">
+	<link rel="preload" href="sharedassets400.resource" as="fetch">
+	<link rel="preload" href="sharedassets410.resource" as="fetch">
+  <div id="loading-text">Loading...</div>
+  <div id="unity-mobile-warning">WebGL not supported on mobile</div>
+  <canvas id="unity-canvas"></canvas>
+  <div id="fps-graph" style="display:none"><canvas id="fps-canvas"></canvas></div>
+<script>
+const lt=document.getElementById("loading-text"),
+      cv=document.getElementById("unity-canvas"),
+      mw=document.getElementById("unity-mobile-warning");
+
+let lb=0;
+const tm='912.81';
+
+// -------- Create FPS text element --------
+const fpsText = document.createElement("div");
+fpsText.style = `
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: monospace;
+  font-size: 18px;
+  background: rgba(0,0,0,0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 99999;
+`;
+fpsText.textContent = "FPS: 0";
+document.body.appendChild(fpsText);
+
+// -------- FPS update loop --------
+let lastTime = performance.now();
+function updateFPS() {
+  const now = performance.now();
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  const fps = dt > 0 ? (1 / dt) : 60;
+  fpsText.textContent = "FPS: " + Math.round(fps);
+
+  requestAnimationFrame(updateFPS);
+}
+
+// -------- Mobile warning --------
+if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+  const m=document.createElement('meta');
+  m.name='viewport';
+  m.content='width=device-width,height=device-height,initial-scale=1,user-scalable=no,shrink-to-fit=yes';
+  document.head.appendChild(m);
+  mw.style.display="block";
+  setTimeout(()=>mw.style.display="none",5000);
+}
+
+// -------- Chunked fetch & merge --------
+async function fwp(u){
+  const r=await fetch(u),
+        rd=r.body.getReader(),
+        ch=[];
+  while(true){
+    const{done,value}=await rd.read();
+    if(done)break;
+    lb+=value.length;
+    ch.push(value);
+    lt.textContent=`${(lb/1048576).toFixed(2)} MB / ${tm} MB`;
+  }
+  return URL.createObjectURL(new Blob(ch));
+}
+async function mf(p){
+  const b=await Promise.all(p.map(fwp)),
+        bl=await Promise.all(b.map(u=>fetch(u).then(r=>r.blob())));
+  return URL.createObjectURL(new Blob(bl));
+}
+function gp(f,s,e){
+  return Array.from({length:e-s+1},(_,i)=>`${f}.part${s+i}`);
+}
+
+// -------- Unity bootstrapping --------
+(async()=>{
+  const [du,wu]=await Promise.all([
+    mf(gp("Build/hktruffled.data",1,45)),
+    mf(gp("Build/hktruffled.wasm",1,2))
+  ]);
+
+  const sc=document.createElement("script");
+  sc.src="Build/hktruffled.loader.js";
+  sc.onload=()=>{
+    const config = {
+      dataUrl: du,
+      frameworkUrl: "Build/hktruffled.framework.js",
+      codeUrl: wu,
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Team Cherry",
+      productName: "Hollow Knight",
+      productVersion: "1.0",
+      memory: 384 * 1024 * 1024,
+      useWebGL2: true,
+      webglContextAttributes: {
+        antialias: false,
+        alpha: false,
+        depth: true,
+        stencil: false,
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false,
+        desynchronized: true
+      }
+    };
+
+    createUnityInstance(cv, config).then(()=>{
+      lt.remove();
+      asb();
+      asib();
+      buildSavePanel();
+      updateFPS();
+    }).catch(alert);
+  };
+  document.body.appendChild(sc);
+})();
+
+// -------- EXPORT SAVE (slot-based) --------
+function asb() {} // replaced by save panel below
+function asib() {} // replaced by save panel below
+
+function buildSavePanel() {
+  const panel = document.createElement("div");
+  panel.id = "save-panel";
+
+  const dlBtn = document.createElement("button");
+  dlBtn.className = "save-panel-btn";
+  dlBtn.id = "btn-download";
+  dlBtn.innerHTML = `<span class="btn-icon">⬇</span> Export Save`;
+  dlBtn.onclick = savedownload;
+
+  const impBtn = document.createElement("button");
+  impBtn.className = "save-panel-btn";
+  impBtn.id = "btn-import";
+  impBtn.innerHTML = `<span class="btn-icon">⬆</span> Import Save`;
+  impBtn.onclick = () => input.click();
+
+  panel.appendChild(dlBtn);
+  panel.appendChild(impBtn);
+  document.body.appendChild(panel);
+}
+
+function savedownload() {
+  const slot = prompt("Which slot do you want to export? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+
+  const openReq = indexedDB.open("/idbfs");
+
+  openReq.onsuccess = e => {
+    const db = e.target.result;
+    const tx = db.transaction("FILE_DATA", "readonly");
+    const store = tx.objectStore("FILE_DATA");
+
+    store.getAllKeys().onsuccess = ev => {
+      const keys = ev.target.result;
+      if (!keys.length) {
+        alert("No save data found.");
+        return;
+      }
+
+      const firstKey = keys[0];
+      const currentHash = firstKey.split("/")[2];
+      const key = `/idbfs/${currentHash}/user${slot}.dat`;
+
+      store.get(key).onsuccess = ev2 => {
+        const entry = ev2.target.result;
+        if (!entry) {
+          alert(`Slot ${slot} is empty.`);
+          return;
+        }
+
+        const blob = new Blob([entry.contents], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `user${slot}.dat`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+      };
+    };
+  };
+}
+
+// -------- IMPORT SAVE (slot-based) --------
+
+const input = document.createElement("input");
+input.type = "file";
+input.accept = ".dat";
+input.style.display = "none";
+document.body.appendChild(input);
+
+input.onchange = () => {
+  const file = input.files[0];
+  if (!file) return;
+
+  const slot = prompt("Import into which slot? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const buffer = reader.result;
+    const bytes = new Uint8Array(buffer);
+
+    const req = indexedDB.open("/idbfs");
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction("FILE_DATA", "readwrite");
+      const store = tx.objectStore("FILE_DATA");
+
+      store.getAllKeys().onsuccess = ev => {
+        const keys = ev.target.result;
+        if (!keys.length) {
+          console.error("No keys found in FILE_DATA");
+          return;
+        }
+
+        const firstKey = keys[0];
+        const currentHash = firstKey.split("/")[2];
+        const key = `/idbfs/${currentHash}/user${slot}.dat`;
+
+        store.put(
+          {
+            timestamp: new Date().toISOString(),
+            mode: 33206,
+            contents: bytes
+          },
+          key
+        ).onsuccess = () => {
+          console.log(`Imported into slot ${slot}:`, key);
+          alert(`Save imported into Slot ${slot}. Refresh the page.`);
+        };
+      };
+    };
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+</script>
+
+<!-- ══════════════════ LiveSplit-style Timer ══════════════════ -->
+<div id="ls-show-tab" title="Show timer (H)">Timer</div>
+<div id="ls-timer">
+  <div id="ls-title-bar">
+    <span id="ls-game-name">Hollow Knight</span>
+    <div id="ls-controls">
+      <button class="ls-ctrl-btn" id="ls-btn-start"  title="Start / Pause (1)">Start</button>
+      <button class="ls-ctrl-btn" id="ls-btn-split"  title="Split (2)">Split</button>
+      <button class="ls-ctrl-btn" id="ls-btn-reset"  title="Reset (3)">Reset</button>
+      <button class="ls-ctrl-btn" id="ls-btn-hide"   title="Hide timer (H)">Hide</button>
+    </div>
+  </div>
+
+  <ul id="ls-splits-list"></ul>
+
+  <div id="ls-edit-bar">
+    <button id="ls-btn-add" title="Add a new split">+ Add Split</button>
+    <button id="ls-btn-remove" title="Remove last split">− Remove</button>
+  </div>
+
+  <div id="ls-divider"></div>
+
+  <div id="ls-main-time-wrap">
+    <span id="ls-main-time" class="ls-time-stopped">0:00.00</span>
+  </div>
+
+  <div id="ls-footer">
+    <span id="ls-sum-label">Sum of Best</span>
+    <span id="ls-sum-time">—</span>
+    <span id="ls-kb-hint">1 · 2 · 3</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ── Default splits (common HK any% checkpoints) ──
+  const DEFAULT_SPLITS = [
+    { name: "Gruz Mother",      pb: null, gold: null },
+    { name: "False Knight",     pb: null, gold: null },
+    { name: "Hornet 1",         pb: null, gold: null },
+    { name: "Greenpath Boss",   pb: null, gold: null },
+    { name: "Mantis Lords",     pb: null, gold: null },
+    { name: "Soul Master",      pb: null, gold: null },
+    { name: "Watcher Knights",  pb: null, gold: null },
+    { name: "Radiance",         pb: null, gold: null },
+  ];
+
+  const LS_KEY = "ls_hk_splits_v2";
+
+  // ── State ──
+  let splits    = loadSplits();
+  let running   = false;
+  let startTime = 0;      // performance.now() snapshot
+  let elapsed   = 0;      // ms accumulated before current run segment
+  let currentSplit = 0;
+  let splitTimes   = [];  // ms at each split this run
+  let rafId        = null;
+  let collapsed    = false;
+
+  // ── DOM refs ──
+  const timerEl   = document.getElementById("ls-timer");
+  const mainTime  = document.getElementById("ls-main-time");
+  const splitsList = document.getElementById("ls-splits-list");
+  const sumTime   = document.getElementById("ls-sum-time");
+  const btnStart  = document.getElementById("ls-btn-start");
+  const btnSplit  = document.getElementById("ls-btn-split");
+  const btnReset  = document.getElementById("ls-btn-reset");
+  const titleBar  = document.getElementById("ls-title-bar");
+
+  // ── Helpers ──
+  function fmtMs(ms, decimals = 2) {
+    if (ms == null) return "—";
+    const s   = Math.floor(ms / 1000);
+    const m   = Math.floor(s / 60);
+    const h   = Math.floor(m / 60);
+    const ss  = s % 60;
+    const mm  = m % 60;
+    const frac = Math.floor((ms % 1000) / (decimals === 2 ? 10 : 1));
+    const fracStr = decimals === 2
+      ? String(frac).padStart(2, "0")
+      : String(frac).padStart(3, "0");
+
+    if (h > 0) return `${h}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}.${fracStr}`;
+    return `${mm > 0 ? mm + ":" : ""}${mm > 0 ? String(ss).padStart(2,"0") : ss}.${fracStr}`;
+  }
+
+  function fmtDelta(ms) {
+    if (ms == null) return "";
+    const sign = ms >= 0 ? "+" : "-";
+    return sign + fmtMs(Math.abs(ms));
+  }
+
+  function loadSplits() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(LS_KEY));
+      if (stored && Array.isArray(stored)) return stored;
+    } catch(e) {}
+    return DEFAULT_SPLITS.map(s => ({ ...s }));
+  }
+
+  function saveSplits() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(splits)); } catch(e) {}
+  }
+
+  function getNow() { return elapsed + (running ? performance.now() - startTime : 0); }
+
+  // ── Render splits list ──
+  function renderSplits() {
+    splitsList.innerHTML = "";
+    splits.forEach((sp, i) => {
+      const li = document.createElement("li");
+      li.className = "ls-split-row";
+
+      const isDone = i < splitTimes.length;
+      const isCurrent = i === currentSplit && !isDone;
+
+      if (isCurrent) li.classList.add("ls-current");
+
+      let deltaClass = "";
+      let deltaStr   = "";
+
+      if (isDone) {
+        const splitMs = splitTimes[i];
+        const prevMs  = i === 0 ? 0 : splitTimes[i - 1];
+        const segMs   = splitMs - prevMs;
+
+        const pbSeg   = sp.pb != null
+          ? (i === 0 ? sp.pb : sp.pb - (splits[i-1].pb ?? 0))
+          : null;
+
+        if (pbSeg != null) {
+          const delta = segMs - pbSeg;
+          deltaStr  = fmtDelta(delta);
+          if (segMs < (sp.gold ?? Infinity)) {
+            deltaClass = "ls-done-gold";
+          } else {
+            deltaClass = delta <= 0 ? "ls-done-good" : "ls-done-bad";
+          }
+        } else {
+          deltaStr = fmtMs(segMs);
+          deltaClass = "ls-done-good";
+        }
+        li.classList.add(deltaClass);
+      }
+
+      // Icon element
+      const iconEl = sp.icon
+        ? (() => {
+            const img = document.createElement("img");
+            img.className = "ls-split-icon";
+            img.src = sp.icon;
+            img.title = "Click to change icon";
+            return img;
+          })()
+        : (() => {
+            const ph = document.createElement("div");
+            ph.className = "ls-split-icon-placeholder";
+            ph.title = "Click to add icon";
+            ph.textContent = "+";
+            return ph;
+          })();
+
+      iconEl.addEventListener("click", e => {
+        e.stopPropagation();
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/png,image/webp,image/jpeg";
+        fileInput.style.display = "none";
+        document.body.appendChild(fileInput);
+        fileInput.click();
+        fileInput.onchange = () => {
+          const file = fileInput.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            splits[i].icon = reader.result;
+            saveSplits();
+            renderSplits();
+          };
+          reader.readAsDataURL(file);
+          document.body.removeChild(fileInput);
+        };
+      });
+
+      // Right-click icon to remove it
+      iconEl.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (sp.icon && confirm("Remove icon for this split?")) {
+          splits[i].icon = null;
+          saveSplits();
+          renderSplits();
+        }
+      });
+
+      const nameSpan  = document.createElement("span");
+      nameSpan.className = "ls-split-name";
+      nameSpan.textContent = sp.name;
+
+      const pbSpan    = document.createElement("span");
+      pbSpan.className = "ls-split-pb";
+      pbSpan.textContent = sp.pb != null ? fmtMs(sp.pb) : "";
+
+      const deltaSpan = document.createElement("span");
+      deltaSpan.className = "ls-split-delta";
+      deltaSpan.textContent = deltaStr;
+
+      li.appendChild(iconEl);
+      li.appendChild(nameSpan);
+      li.appendChild(pbSpan);
+      li.appendChild(deltaSpan);
+
+      splitsList.appendChild(li);
+    });
+
+    // Scroll current split into view
+    const rows = splitsList.querySelectorAll(".ls-split-row");
+    if (rows[currentSplit]) rows[currentSplit].scrollIntoView({ block: "nearest" });
+  }
+
+  // ── Render sum of best ──
+  function renderSumOfBest() {
+    const total = splits.reduce((acc, sp, i) => {
+      const seg = i === 0 ? sp.gold : (sp.gold != null && splits[i-1].gold != null ? sp.gold - splits[i-1].gold : null);
+      // fallback: use per-split gold stored separately
+      return acc + (sp.gold ?? 0);
+    }, 0);
+    sumTime.textContent = splits.some(s => s.gold != null) ? fmtMs(total) : "—";
+  }
+
+  // ── RAF loop ──
+  function tick() {
+    const now = getNow();
+    mainTime.textContent = fmtMs(now);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ── Controls ──
+  function startPause() {
+    if (!running) {
+      // Start or resume
+      startTime = performance.now();
+      running   = true;
+      mainTime.className = "ls-time-running";
+      rafId = requestAnimationFrame(tick);
+    } else {
+      // Pause
+      elapsed += performance.now() - startTime;
+      running  = false;
+      cancelAnimationFrame(rafId);
+      mainTime.className = "ls-time-paused";
+      mainTime.textContent = fmtMs(elapsed);
+    }
+  }
+
+  function doSplit() {
+    if (!running) return;
+    if (currentSplit >= splits.length) return;
+
+    const now = getNow();
+    splitTimes.push(now);
+
+    const sp = splits[currentSplit];
+    const segStart = currentSplit === 0 ? 0 : splitTimes[currentSplit - 1];
+    const segMs    = now - segStart;
+
+    // Update gold (best segment ever)
+    if (sp.gold == null || segMs < sp.gold) sp.gold = segMs;
+    // Update PB (cumulative)
+    if (sp.pb == null || now < sp.pb) sp.pb = now;
+
+    currentSplit++;
+    saveSplits();
+    renderSplits();
+    renderSumOfBest();
+
+    if (currentSplit >= splits.length) {
+      // Run complete
+      running = false;
+      cancelAnimationFrame(rafId);
+      mainTime.className = "ls-time-stopped";
+      elapsed = now;
+    }
+  }
+
+  function doReset() {
+    running      = false;
+    elapsed      = 0;
+    currentSplit = 0;
+    splitTimes   = [];
+    cancelAnimationFrame(rafId);
+    mainTime.className   = "ls-time-stopped";
+    mainTime.textContent = "0:00.00";
+    renderSplits();
+  }
+
+  // ── Drag to reposition ──
+  let dragging = false, dx = 0, dy = 0;
+  titleBar.addEventListener("mousedown", e => {
+    if (e.target.classList.contains("ls-ctrl-btn")) return;
+    dragging = true;
+    const rect = timerEl.getBoundingClientRect();
+    dx = e.clientX - rect.left;
+    dy = e.clientY - rect.top;
+    timerEl.style.transition = "none";
+  });
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    timerEl.style.right  = "auto";
+    timerEl.style.left   = (e.clientX - dx) + "px";
+    timerEl.style.top    = (e.clientY - dy) + "px";
+  });
+  document.addEventListener("mouseup", () => { dragging = false; });
+
+  const btnAdd    = document.getElementById("ls-btn-add");
+  const btnRemove = document.getElementById("ls-btn-remove");
+  const btnHide   = document.getElementById("ls-btn-hide");
+  const showTab   = document.getElementById("ls-show-tab");
+
+  function hideTimer() {
+    timerEl.style.display = "none";
+    showTab.style.display = "block";
+  }
+  function showTimer() {
+    timerEl.style.display = "";
+    showTab.style.display = "none";
+  }
+
+  btnHide.addEventListener("click", hideTimer);
+  showTab.addEventListener("click", showTimer);
+
+  btnAdd.addEventListener("click", () => {
+    const name = prompt("New split name:");
+    if (name && name.trim()) {
+      splits.push({ name: name.trim(), pb: null, gold: null });
+      saveSplits();
+      renderSplits();
+    }
+  });
+
+  btnRemove.addEventListener("click", () => {
+    if (!splits.length) return;
+    const last = splits[splits.length - 1];
+    if (confirm(`Remove "${last.name}"?`)) {
+      splits.pop();
+      if (currentSplit >= splits.length) currentSplit = Math.max(0, splits.length - 1);
+      saveSplits();
+      renderSplits();
+    }
+  });
+
+  // ── Double-click title to collapse ──
+  titleBar.addEventListener("dblclick", e => {
+    if (e.target.classList.contains("ls-ctrl-btn")) return;
+    collapsed = !collapsed;
+    timerEl.classList.toggle("ls-collapsed", collapsed);
+  });
+
+  // ── Button events ──
+  btnStart.addEventListener("click", startPause);
+  btnSplit.addEventListener("click", doSplit);
+  btnReset.addEventListener("click", doReset);
+
+  // ── Keyboard shortcuts (number keys 1/2/3) ──
+  document.addEventListener("keydown", e => {
+    const k = e.code;
+    if (k === "Digit1") { e.preventDefault(); startPause(); }
+    if (k === "Digit2") { e.preventDefault(); doSplit();    }
+    if (k === "Digit3") { e.preventDefault(); doReset();    }
+    if (k === "KeyH")   { e.preventDefault(); timerEl.style.display === "none" ? showTimer() : hideTimer(); }
+  });
+
+  // ── Edit split names by clicking ──
+  splitsList.addEventListener("dblclick", e => {
+    if (e.target.classList.contains("ls-split-icon") ||
+        e.target.classList.contains("ls-split-icon-placeholder")) return;
+    const row = e.target.closest(".ls-split-row");
+    if (!row) return;
+    const idx  = Array.from(splitsList.children).indexOf(row);
+    const name = prompt("Split name:", splits[idx].name);
+    if (name !== null && name.trim()) {
+      splits[idx].name = name.trim();
+      saveSplits();
+      renderSplits();
+    }
+  });
+
+  // ── Right-click to add/remove splits ──
+  splitsList.addEventListener("contextmenu", e => {
+    e.preventDefault();
+    const row = e.target.closest(".ls-split-row");
+    if (!row) {
+      const name = prompt("Add split name:");
+      if (name && name.trim()) {
+        splits.push({ name: name.trim(), pb: null, gold: null });
+        saveSplits();
+        renderSplits();
+      }
+      return;
+    }
+    const idx = Array.from(splitsList.children).indexOf(row);
+    if (confirm(`Remove split "${splits[idx].name}"?`)) {
+      splits.splice(idx, 1);
+      saveSplits();
+      renderSplits();
+    }
+  });
+
+  // ── Init ──
+  renderSplits();
+  renderSumOfBest();
+})();
+</script>
+</body>
+</html>
