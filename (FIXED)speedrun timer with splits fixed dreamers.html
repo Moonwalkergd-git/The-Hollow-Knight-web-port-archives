@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/HorizonOfficia/hollow-knight@latest/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hollow Knight</title>
+  <link rel="preload" href="sharedassets8.resource" as="fetch">
+  <link rel="preload" href="sharedassets127.resource" as="fetch">
+  <link rel="preload" href="sharedassets400.resource" as="fetch">
+  <link rel="preload" href="sharedassets410.resource" as="fetch">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: radial-gradient(circle at top, #111 0%, #050509 35%, #000 100%);
+      color: #fff;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    body { position: relative; }
+    #unity-canvas {
+      width: 100vw; height: 100vh;
+      display: block; background: #000;
+    }
+    #loading-text, #unity-mobile-warning {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      text-align: center; padding: 16px 22px; border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.78);
+      box-shadow: 0 24px 60px rgba(0,0,0,.35);
+      z-index: 9998; max-width: min(96vw, 420px);
+    }
+    #loading-text {
+      top: 50%; transform: translate(-50%, -50%);
+      font: 600 1.05rem/1.4 "Segoe UI", sans-serif;
+      letter-spacing: .04em;
+    }
+    #unity-mobile-warning {
+      top: 18px; display: none;
+      font: .95rem/1.4 "Segoe UI", sans-serif;
+    }
+    .toolbar {
+      position: fixed; top: 18px; right: 18px;
+      display: flex; gap: 12px; z-index: 9999;
+    }
+    .toolbar button, .savebtn {
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: #fff; padding: .9rem 1rem;
+      border-radius: 999px;
+      font: 600 .95rem/1.2 "Segoe UI", sans-serif;
+      cursor: pointer;
+      transition: transform .15s ease, background .15s ease;
+      backdrop-filter: blur(10px);
+    }
+    .toolbar button:hover, .savebtn:hover {
+      background: rgba(255,255,255,.12);
+      transform: translateY(-1px);
+    }
+    #fps-graph {
+      position: fixed; bottom: 18px; left: 18px;
+      width: 210px; height: 82px;
+      background: rgba(8,8,12,.88);
+      border-radius: 18px; padding: 12px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.3);
+      z-index: 9999; transition: opacity .2s ease;
+    }
+    #fps-canvas { width: 100%; height: 100%; display: block; border-radius: 12px; }
+    .hidden { opacity: 0; pointer-events: none; }
+    #speedrun-timer {
+      position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.72);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px; padding: 10px 14px;
+      color: #fff; font-family: monospace;
+      z-index: 99999; display: none;
+      user-select: none; text-align: center;
+    }
+    #speedrun-timer .label {
+      font-size: 10px; opacity: .7; letter-spacing: 2px; margin-bottom: 4px;
+    }
+    #timer-display { font-size: 26px; font-weight: bold; }
+    #splits {
+      margin-top: 8px; max-height: 160px; overflow-y: auto;
+      font-size: 13px; text-align: left;
+      border-top: 1px solid rgba(255,255,255,.1); padding-top: 6px;
+    }
+    #speedrun-timer .hint {
+      font-size: 10px; opacity: .5; margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-text">Loading Hollow Knight…</div>
+  <div id="unity-mobile-warning">WebGL not supported on mobile</div>
+  <div class="toolbar" id="toolbar"></div>
+  <canvas id="unity-canvas"></canvas>
+
+  <div id="speedrun-timer">
+    <div class="label">SPEEDRUN</div>
+    <div id="timer-display">00:00:00.000</div>
+    <div id="splits"></div>
+    <div class="hint">T = Start/Pause • R = Reset • E = Split</div>
+  </div>
+
+  <div id="fps-graph" class="hidden"><canvas id="fps-canvas"></canvas></div>
+
+<script>
+const lt = document.getElementById("loading-text");
+const cv = document.getElementById("unity-canvas");
+const mw = document.getElementById("unity-mobile-warning");
+const tb = document.getElementById("toolbar");
+
+const timerBox = document.getElementById("speedrun-timer");
+const timerDisplay = document.getElementById("timer-display");
+const splitsContainer = document.getElementById("splits");
+
+let splitCount = 0;
+let timerEnabled = false;
+let timerRunning = false;
+let timerElapsed = 0;
+let timerStart = 0;
+
+const timerBtn = document.createElement("button");
+timerBtn.className = "savebtn";
+timerBtn.textContent = "Timer: OFF";
+timerBtn.onclick = () => {
+  timerEnabled = !timerEnabled;
+  timerBox.style.display = timerEnabled ? "block" : "none";
+  timerBtn.textContent = timerEnabled ? "Timer: ON" : "Timer: OFF";
+  if (!timerEnabled) timerRunning = false;
+};
+tb.appendChild(timerBtn);
+
+function formatTimer(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const msPart = Math.floor(ms % 1000);
+  return String(h).padStart(2, "0") + ":" +
+         String(m).padStart(2, "0") + ":" +
+         String(s).padStart(2, "0") + "." +
+         String(msPart).padStart(3, "0");
+}
+
+let timerRAF = 0;
+function tickTimer() {
+  if (timerEnabled && timerRunning) {
+    timerElapsed = performance.now() - timerStart;
+    timerDisplay.textContent = formatTimer(timerElapsed);
+  }
+  timerRAF = requestAnimationFrame(tickTimer);
+}
+tickTimer();
+
+document.addEventListener("keydown", e => {
+  if (!timerEnabled || e.repeat) return;
+  const key = e.key.toLowerCase();
+  if (key === "t") {
+    if (timerRunning) {
+      timerRunning = false;
+    } else {
+      timerRunning = true;
+      timerStart = performance.now() - timerElapsed;
+    }
+  } else if (key === "r") {
+    timerRunning = false;
+    timerElapsed = 0;
+    splitCount = 0;
+    timerDisplay.textContent = "00:00:00.000";
+    splitsContainer.innerHTML = "";
+  } else if (key === "e" && timerRunning) {
+    splitCount++;
+    const split = document.createElement("div");
+    split.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.06)";
+    split.innerHTML = `<span>Split ${splitCount}</span><span>${formatTimer(timerElapsed)}</span>`;
+    splitsContainer.appendChild(split);
+    splitsContainer.scrollTop = splitsContainer.scrollHeight;
+  }
+});
+
+const fpsText = document.createElement("div");
+fpsText.style.cssText = "position:fixed;top:10px;left:10px;color:#fff;font-family:monospace;font-size:18px;background:rgba(0,0,0,.4);padding:4px 8px;border-radius:6px;z-index:99999";
+fpsText.textContent = "FPS: 0";
+document.body.appendChild(fpsText);
+
+const keystrokeDisplay = document.createElement("div");
+keystrokeDisplay.style.cssText = "position:fixed;top:50px;left:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:50px;max-width:calc(100vw - 40px);padding:10px;border-radius:18px;background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.08);box-shadow:0 18px 50px rgba(0,0,0,.18);z-index:99999";
+document.body.appendChild(keystrokeDisplay);
+
+const pressedKeys = new Set();
+let keyDirty = false;
+
+document.addEventListener("keydown", e => {
+  pressedKeys.add(e.key);
+  keyDirty = true;
+});
+document.addEventListener("keyup", e => {
+  pressedKeys.delete(e.key);
+  keyDirty = true;
+});
+
+function prettyKeyName(key) {
+  if (key === " ") return "Space";
+  if (key === "ArrowUp") return "↑";
+  if (key === "ArrowDown") return "↓";
+  if (key === "ArrowLeft") return "←";
+  if (key === "ArrowRight") return "→";
+  return key.length === 1 ? key.toUpperCase() : key;
+}
+
+function updateKeystrokeDisplay() {
+  if (!keyDirty) return;
+  keyDirty = false;
+  keystrokeDisplay.textContent = "";
+  for (const key of pressedKeys) {
+    const el = document.createElement("span");
+    el.textContent = prettyKeyName(key);
+    el.style.cssText = "display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;padding:0 8px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);font:600 14px/1 monospace;box-shadow:0 10px 24px rgba(0,0,0,.18)";
+    keystrokeDisplay.appendChild(el);
+  }
+}
+
+let lastTime = performance.now();
+let frameCount = 0;
+let fpsAcc = 0;
+
+function updateFPS(now) {
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+  frameCount++;
+  fpsAcc += dt > 0 ? 1 / dt : 60;
+  if (frameCount >= 15) {
+    fpsText.textContent = "FPS: " + Math.round(fpsAcc / frameCount);
+    frameCount = 0;
+    fpsAcc = 0;
+  }
+  updateKeystrokeDisplay();
+  requestAnimationFrame(updateFPS);
+}
+
+if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+  const m = document.createElement("meta");
+  m.name = "viewport";
+  m.content = "width=device-width,height=device-height,initial-scale=1,user-scalable=no,shrink-to-fit=yes";
+  document.head.appendChild(m);
+  mw.style.display = "block";
+  setTimeout(() => { mw.style.display = "none"; }, 5000);
+}
+
+let lb = 0;
+const tm = "912.81";
+
+async function fwp(u) {
+  const r = await fetch(u);
+  const rd = r.body.getReader();
+  const ch = [];
+  while (true) {
+    const { done, value } = await rd.read();
+    if (done) break;
+    lb += value.length;
+    ch.push(value);
+    lt.textContent = (lb / 1048576).toFixed(2) + " MB / " + tm + " MB";
+  }
+  return URL.createObjectURL(new Blob(ch));
+}
+
+async function mf(p) {
+  const b = await Promise.all(p.map(fwp));
+  const bl = await Promise.all(b.map(u => fetch(u).then(r => r.blob())));
+  return URL.createObjectURL(new Blob(bl));
+}
+
+function gp(f, s, e) {
+  return Array.from({ length: e - s + 1 }, (_, i) => f + ".part" + (s + i));
+}
+
+(async () => {
+  const [du, wu] = await Promise.all([
+    mf(gp("Build/hktruffled.data", 1, 45)),
+    mf(gp("Build/hktruffled.wasm", 1, 2))
+  ]);
+  const sc = document.createElement("script");
+  sc.src = "Build/hktruffled.loader.js";
+  sc.onload = () => {
+    createUnityInstance(cv, {
+      dataUrl: du,
+      frameworkUrl: "Build/hktruffled.framework.js",
+      codeUrl: wu,
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Team Cherry",
+      productName: "Hollow Knight",
+      productVersion: "1.0",
+      memory: 384 * 1024 * 1024,
+      useWebGL2: true,
+      webglContextAttributes: {
+        antialias: false,
+        alpha: false,
+        depth: true,
+        stencil: false,
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false,
+        desynchronized: true
+      }
+    }).then(() => {
+      lt.remove();
+      asb();
+      asib();
+      requestAnimationFrame(updateFPS);
+    }).catch(alert);
+  };
+  document.body.appendChild(sc);
+})();
+
+function asb() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Download Save";
+  btn.onclick = savedownload;
+  tb.appendChild(btn);
+}
+
+function savedownload() {
+  const slot = prompt("Which slot do you want to export? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+  const openReq = indexedDB.open("/idbfs");
+  openReq.onsuccess = e => {
+    const db = e.target.result;
+    const tx = db.transaction("FILE_DATA", "readonly");
+    const store = tx.objectStore("FILE_DATA");
+    store.getAllKeys().onsuccess = ev => {
+      const keys = ev.target.result;
+      if (!keys.length) { alert("No save data found."); return; }
+      const currentHash = keys[0].split("/")[2];
+      const key = "/idbfs/" + currentHash + "/user" + slot + ".dat";
+      store.get(key).onsuccess = ev2 => {
+        const entry = ev2.target.result;
+        if (!entry) { alert("Slot " + slot + " is empty."); return; }
+        const blob = new Blob([entry.contents], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "user" + slot + ".dat";
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+    };
+  };
+}
+
+function asib() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Import Save";
+  btn.onclick = () => input.click();
+  tb.appendChild(btn);
+}
+
+const input = document.createElement("input");
+input.type = "file";
+input.accept = ".dat";
+input.style.display = "none";
+document.body.appendChild(input);
+
+input.onchange = () => {
+  const file = input.files[0];
+  if (!file) return;
+  const slot = prompt("Import into which slot? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const bytes = new Uint8Array(reader.result);
+    const req = indexedDB.open("/idbfs");
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction("FILE_DATA", "readwrite");
+      const store = tx.objectStore("FILE_DATA");
+      store.getAllKeys().onsuccess = ev => {
+        const keys = ev.target.result;
+        if (!keys.length) return;
+        const currentHash = keys[0].split("/")[2];
+        const key = "/idbfs/" + currentHash + "/user" + slot + ".dat";
+        store.put({
+          timestamp: new Date().toISOString(),
+          mode: 33206,
+          contents: bytes
+        }, key).onsuccess = () => {
+          alert("Save imported into Slot " + slot + ". Refresh the page.");
+        };
+      };
+    };
+  };
+  reader.readAsArrayBuffer(file);
+};
+</script>
+</body>
+</html>
