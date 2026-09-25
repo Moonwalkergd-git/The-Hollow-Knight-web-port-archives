@@ -11,7 +11,7 @@ The current patch port download may not work so here is the link: https://glitch
 
 W bog for making free hollow knight.
 
-Modded hk ports by Moonwalkergd-git ( me )  +  CHOCOLATE68 (random kid)
+Modded hk ports by Moonwalkergd-git ( me )  +  CHOCOLATE68 (random kid) + aRustyPi
 
 Please credit us for finding these!
 
