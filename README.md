@@ -1,5 +1,6 @@
 # The-Hollow-Knight-web-port-archives
 An archive of many Hollow Knight Web Ports. 
+If you find this useful, please star this repo so more people can see it!
 
 Original port by bog, who's github has been taken down. Here is their new account: https://github.com/goodmeals
 
