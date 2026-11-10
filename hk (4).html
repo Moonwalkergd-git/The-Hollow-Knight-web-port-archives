@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/HorizonOfficia/hollow-knight@latest/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hollow Knight</title>
+  <link rel="preload" href="sharedassets8.resource" as="fetch">
+  <link rel="preload" href="sharedassets127.resource" as="fetch">
+  <link rel="preload" href="sharedassets400.resource" as="fetch">
+  <link rel="preload" href="sharedassets410.resource" as="fetch">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --gold: #c9a84c;
+      --gold-dim: #8a6f2e;
+      --soul: #a8d4f5;
+      --void: #05050d;
+      --panel: rgba(8, 8, 18, 0.92);
+      --border: rgba(201, 168, 76, 0.18);
+      --border-bright: rgba(201, 168, 76, 0.45);
+      --text: #d4cfc4;
+      --text-dim: #7a7468;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: radial-gradient(circle at top, #111 0%, #050509 35%, #000 100%);
+      color: #fff;
+      font-family: 'Crimson Pro', Georgia, serif;
+      overflow: hidden;
+    }
+    #unity-canvas {
+      width: 100vw; height: 100vh;
+      display: block; background: #000;
+    }
+    #loading-text, #unity-mobile-warning {
+      position: fixed; left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      padding: 16px 22px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.78);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+      z-index: 9998;
+      max-width: min(96vw, 420px);
+    }
+    #loading-text {
+      top: 50%; transform: translate(-50%,-50%);
+      font: 600 1.05rem/1.4 "Segoe UI", sans-serif;
+      letter-spacing: 0.04em;
+    }
+    #unity-mobile-warning { top: 18px; display: none; font: 0.95rem/1.4 "Segoe UI", sans-serif; }
+    .toolbar {
+      position: fixed; top: 18px; right: 18px;
+      display: flex; gap: 10px; z-index: 9999; align-items: center;
+    }
+    .toolbar button, .savebtn {
+      border: 1px solid var(--border-bright);
+      background: rgba(201,168,76,0.07);
+      color: var(--gold);
+      padding: 0.65rem 1.1rem;
+      border-radius: 8px;
+      font: 600 0.82rem/1.2 'Cinzel', serif;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    .toolbar button:hover, .savebtn:hover {
+      background: rgba(201,168,76,0.15);
+      border-color: var(--gold);
+      transform: translateY(-1px);
+    }
+    #fps-graph {
+      position: fixed; bottom: 18px; left: 18px;
+      width: 210px; height: 82px;
+      background: rgba(8,8,12,0.88);
+      border-radius: 18px; padding: 12px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+      z-index: 9999;
+      transition: opacity 0.2s ease;
+    }
+    #fps-canvas { width: 100%; height: 100%; display: block; border-radius: 12px; }
+    .hidden { opacity: 0; pointer-events: none; }
+
+    /* ═══════════════════════════════════════
+       SKIN PANEL
+    ═══════════════════════════════════════ */
+    #skin-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: 340px;
+      height: 100vh;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 10000;
+      transform: translateX(100%);
+      transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+      backdrop-filter: blur(20px);
+    }
+    #skin-panel.open { transform: translateX(0); }
+
+    .skin-panel-header {
+      padding: 22px 22px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .skin-panel-header h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .skin-panel-header p {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+    .skin-panel-header p a {
+      color: var(--soul);
+      text-decoration: none;
+    }
+    .skin-panel-header p a:hover { text-decoration: underline; }
+
+    /* Drop zone */
+    #skin-dropzone {
+      margin: 16px;
+      border: 1.5px dashed var(--border-bright);
+      border-radius: 12px;
+      padding: 22px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(201,168,76,0.03);
+      flex-shrink: 0;
+    }
+    #skin-dropzone:hover, #skin-dropzone.drag-over {
+      border-color: var(--gold);
+      background: rgba(201,168,76,0.07);
+    }
+    #skin-dropzone .drop-icon {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+      opacity: 0.7;
+    }
+    #skin-dropzone h3 {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      color: var(--gold);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    #skin-dropzone p {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+    #skin-file-input { display: none; }
+
+    /* Skin list */
+    #skin-list-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 16px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--gold-dim) transparent;
+    }
+    .skin-list-label {
+      font-family: 'Cinzel', serif;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin: 12px 0 8px;
+    }
+    .skin-entry {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      margin-bottom: 6px;
+      position: relative;
+    }
+    .skin-entry:hover {
+      background: rgba(201,168,76,0.05);
+      border-color: var(--border);
+    }
+    .skin-entry.active {
+      background: rgba(201,168,76,0.1);
+      border-color: var(--border-bright);
+    }
+    .skin-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .skin-thumb img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+    .skin-info { flex: 1; min-width: 0; }
+    .skin-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      color: var(--text);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    .skin-meta {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+    .skin-active-badge {
+      font-family: 'Cinzel', serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      background: rgba(201,168,76,0.12);
+      border: 1px solid var(--border-bright);
+      padding: 2px 7px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .skin-remove-btn {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all 0.15s;
+    }
+    .skin-entry:hover .skin-remove-btn { opacity: 1; }
+    .skin-remove-btn:hover { color: #ff6b6b; border-color: rgba(255,107,107,0.3); background: rgba(255,107,107,0.08); }
+
+    /* Default skin entry */
+    .skin-entry-default .skin-thumb { font-size: 1.6rem; }
+
+    /* Status / toast */
+    #skin-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border-bright);
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      padding: 10px 18px;
+      border-radius: 10px;
+      z-index: 10001;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+    }
+    #skin-status.show { opacity: 1; transform: translateY(0); }
+
+    /* Loading overlay for skin processing */
+    .skin-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      margin: 0 16px;
+      border-radius: 10px;
+      background: rgba(201,168,76,0.06);
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .spin {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Patch progress */
+    #patch-status {
+      margin: 0 16px 12px;
+      flex-shrink: 0;
+    }
+    .patch-bar-wrap {
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .patch-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+      border-radius: 99px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    .patch-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    /* Skin panel footer */
+    .skin-panel-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .reset-btn {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: var(--text-dim);
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .reset-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); }
+
+    /* Skin panel toggle button */
+    #skin-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #skin-toggle-btn .knight-icon {
+      font-size: 1rem;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-text">Loading Hollow Knight…</div>
+  <div id="unity-mobile-warning">WebGL not supported on mobile</div>
+
+  <div class="toolbar" id="toolbar">
+    <button id="skin-toggle-btn" onclick="toggleSkinPanel()">
+      <span class="knight-icon">⚔</span> Skins
+    </button>
+  </div>
+
+  <canvas id="unity-canvas"></canvas>
+  <div id="fps-graph" class="hidden"><canvas id="fps-canvas"></canvas></div>
+
+  <!-- Skin panel -->
+  <div id="skin-panel">
+    <div class="skin-panel-header">
+      <h2>⚔ Knight Skins</h2>
+      <p>Drop a skin ZIP or import from <a href="https://hkskins.art/" target="_blank" rel="noopener">hkskins.art ↗</a></p>
+    </div>
+
+    <div id="skin-dropzone" onclick="document.getElementById('skin-file-input').click()">
+      <div class="drop-icon">🗜</div>
+      <h3>Drop Skin ZIP Here</h3>
+      <p>or click to browse</p>
+      <input type="file" id="skin-file-input" accept=".zip">
+    </div>
+
+    <div id="skin-list-wrap">
+      <div class="skin-list-label">Installed Skins</div>
+      <div id="skin-list">
+        <!-- Default entry -->
+        <div class="skin-entry skin-entry-default active" id="skin-default" onclick="applySkin(null)">
+          <div class="skin-thumb">🪲</div>
+          <div class="skin-info">
+            <div class="skin-name">Default Knight</div>
+            <div class="skin-meta">Original sprites</div>
+          </div>
+          <span class="skin-active-badge" id="default-badge">ACTIVE</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="patch-status" style="display:none">
+      <div class="patch-label" id="patch-label">Patching textures…</div>
+      <div class="patch-bar-wrap"><div class="patch-bar" id="patch-bar"></div></div>
+    </div>
+
+    <div class="skin-panel-footer">
+      <button class="reset-btn" onclick="applySkin(null)">↩ Restore Default Knight</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="skin-status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// WebGL Texture Interception — must run before Unity boots
+// ══════════════════════════════════════════════════════════════
+const skinState = {
+  skins: [],           // { id, name, textures: Map<string, ImageBitmap>, thumb, meta }
+  active: null,        // active skin id or null (default)
+  pendingSwaps: new Map(), // textureName -> ImageBitmap
+  knightTextures: new Map(), // dimension_key -> WebGLTexture (discovered at runtime)
+  // Known HK knight texture dimensions (w×h) -> texture name mapping
+  // These are the canonical sizes from the game's texture atlases
+  knownSizes: {
+    '768x768': 'Knight',
+    '1024x512': 'HeroLongNew',
+    '512x512': 'Knight',
+    '2048x2048': 'Knight',
+    '1024x1024': 'Knight',
+  }
+};
+
+// Store original texImage2D
+const _origTexImage2D = WebGLRenderingContext.prototype.texImage2D;
+const _origTexImage2D2 = WebGL2RenderingContext?.prototype?.texImage2D;
+
+// We'll track GL contexts and their texture handles
+const glContexts = new Set();
+
+function patchTexImage2D(proto) {
+  proto.texImage2D = function(...args) {
+    // Call original first to let Unity load normally
+    const result = _origTexImage2D.apply(this, args);
+
+    // If we have active swaps, try to replace matching textures
+    if (skinState.pendingSwaps.size > 0 && args[0] === this.TEXTURE_2D) {
+      const source = args[args.length - 1]; // image source is last arg
+      if (source && (source instanceof HTMLImageElement || source instanceof ImageBitmap || source instanceof HTMLCanvasElement)) {
+        const w = source.width || source.naturalWidth;
+        const h = source.height || source.naturalHeight;
+        const key = `${w}x${h}`;
+        const skinBitmap = findMatchingSkinTexture(key, w, h);
+        if (skinBitmap) {
+          // Replace this texture with our skin
+          try {
+            const newArgs = [...args];
+            newArgs[newArgs.length - 1] = skinBitmap;
+            _origTexImage2D.apply(this, newArgs);
+          } catch(e) { /* ignore format mismatches */ }
+        }
+      }
+    }
+    return result;
+  };
+}
+
+function findMatchingSkinTexture(sizeKey, w, h) {
+  if (skinState.pendingSwaps.size === 0) return null;
+  // Try exact size match against our skin textures
+  for (const [name, bitmap] of skinState.pendingSwaps) {
+    if (bitmap.width === w && bitmap.height === h) {
+      return bitmap;
+    }
+  }
+  return null;
+}
+
+try { patchTexImage2D(WebGLRenderingContext.prototype); } catch(e) {}
+try { if (WebGL2RenderingContext) patchTexImage2D(WebGL2RenderingContext.prototype); } catch(e) {}
+
+// ══════════════════════════════════════════════════════════════
+// Skin Panel Logic
+// ══════════════════════════════════════════════════════════════
+let skinPanelOpen = false;
+
+function toggleSkinPanel() {
+  skinPanelOpen = !skinPanelOpen;
+  document.getElementById('skin-panel').classList.toggle('open', skinPanelOpen);
+  document.getElementById('skin-toggle-btn').style.borderColor =
+    skinPanelOpen ? 'var(--gold)' : '';
+}
+
+// Drop zone drag events
+const dropzone = document.getElementById('skin-dropzone');
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  const file = e.dataTransfer?.files?.[0];
+  if (file && file.name.endsWith('.zip')) processSkinZip(file);
+  else showToast('Please drop a .zip skin file');
+});
+
+document.getElementById('skin-file-input').addEventListener('change', e => {
+  const file = e.target.files?.[0];
+  if (file) processSkinZip(file);
+  e.target.value = '';
+});
+
+async function processSkinZip(file) {
+  showLoadingInPanel('Reading skin archive…');
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const textures = new Map();
+    let thumb = null;
+    let fileCount = 0;
+
+    // Extract all PNGs from zip (including nested folders)
+    const pngEntries = [];
+    zip.forEach((path, entry) => {
+      if (!entry.dir && /\.(png|PNG)$/.test(path)) {
+        pngEntries.push({ path, entry });
+      }
+    });
+
+    if (pngEntries.length === 0) {
+      hideLoadingInPanel();
+      showToast('No PNG textures found in ZIP');
+      return;
+    }
+
+    // Load all PNGs as ImageBitmaps
+    let loaded = 0;
+    for (const { path, entry } of pngEntries) {
+      const blob = await entry.async('blob');
+      const bitmap = await createImageBitmap(blob);
+      // Use just the filename (no folder) as the texture name key
+      const filename = path.split('/').pop().replace(/\.png$/i, '');
+      textures.set(filename, bitmap);
+
+      // Use first PNG as thumb (prefer one that looks like the knight - wider)
+      if (!thumb || bitmap.width > (thumb.width || 0)) {
+        thumb = blob;
+      }
+      loaded++;
+    }
+
+    const skinName = file.name.replace(/\.zip$/i, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    const thumbUrl = URL.createObjectURL(thumb);
+
+    const skinObj = {
+      id: `skin_${Date.now()}`,
+      name: skinName,
+      textures,
+      thumbUrl,
+      meta: `${textures.size} texture${textures.size !== 1 ? 's' : ''}`
+    };
+
+    skinState.skins.push(skinObj);
+    hideLoadingInPanel();
+    renderSkinList();
+    showToast(`✦ Skin loaded: ${skinName}`);
+
+    // Auto-apply if it's the only skin
+    if (skinState.skins.length === 1) applySkin(skinObj.id);
+
+  } catch(err) {
+    hideLoadingInPanel();
+    showToast('Failed to read ZIP: ' + err.message);
+    console.error(err);
+  }
+}
+
+function applySkin(skinId) {
+  skinState.active = skinId;
+
+  // Clear pending swaps
+  skinState.pendingSwaps.clear();
+
+  if (skinId !== null) {
+    const skin = skinState.skins.find(s => s.id === skinId);
+    if (skin) {
+      // Load all textures into pending swaps
+      for (const [name, bitmap] of skin.textures) {
+        skinState.pendingSwaps.set(name, bitmap);
+      }
+      showToast(`⚔ Skin applied: ${skin.name}`);
+      showPatchHint();
+    }
+  } else {
+    showToast('↩ Default Knight restored');
+  }
+
+  renderSkinList();
+  updateDefaultBadge();
+}
+
+function removeSkin(skinId, e) {
+  e.stopPropagation();
+  const idx = skinState.skins.findIndex(s => s.id === skinId);
+  if (idx === -1) return;
+  const skin = skinState.skins[idx];
+  URL.revokeObjectURL(skin.thumbUrl);
+  skinState.skins.splice(idx, 1);
+  if (skinState.active === skinId) applySkin(null);
+  else renderSkinList();
+  showToast('Skin removed');
+}
+
+function renderSkinList() {
+  const list = document.getElementById('skin-list');
+  // Clear all except default entry
+  Array.from(list.children).forEach(el => {
+    if (!el.id || el.id !== 'skin-default') el.remove();
+  });
+
+  const defaultEntry = document.getElementById('skin-default');
+  defaultEntry.classList.toggle('active', skinState.active === null);
+  const defBadge = document.getElementById('default-badge');
+  defBadge.style.display = skinState.active === null ? '' : 'none';
+
+  for (const skin of skinState.skins) {
+    const el = document.createElement('div');
+    el.className = `skin-entry${skinState.active === skin.id ? ' active' : ''}`;
+    el.onclick = () => applySkin(skin.id);
+
+    const thumbDiv = document.createElement('div');
+    thumbDiv.className = 'skin-thumb';
+    const img = document.createElement('img');
+    img.src = skin.thumbUrl;
+    img.alt = skin.name;
+    thumbDiv.appendChild(img);
+
+    const info = document.createElement('div');
+    info.className = 'skin-info';
+    info.innerHTML = `
+      <div class="skin-name">${escHtml(skin.name)}</div>
+      <div class="skin-meta">${escHtml(skin.meta)}</div>
+    `;
+
+    const controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '6px';
+    controls.style.alignItems = 'center';
+    controls.style.flexShrink = '0';
+
+    if (skinState.active === skin.id) {
+      const badge = document.createElement('span');
+      badge.className = 'skin-active-badge';
+      badge.textContent = 'ACTIVE';
+      controls.appendChild(badge);
+    }
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'skin-remove-btn';
+    removeBtn.innerHTML = '✕';
+    removeBtn.title = 'Remove skin';
+    removeBtn.onclick = (e) => removeSkin(skin.id, e);
+    controls.appendChild(removeBtn);
+
+    el.appendChild(thumbDiv);
+    el.appendChild(info);
+    el.appendChild(controls);
+    list.appendChild(el);
+  }
+}
+
+function updateDefaultBadge() {
+  const defaultEntry = document.getElementById('skin-default');
+  defaultEntry.classList.toggle('active', skinState.active === null);
+  document.getElementById('default-badge').style.display = skinState.active === null ? '' : 'none';
+}
+
+function showLoadingInPanel() {
+  hideLoadingInPanel();
+  const el = document.createElement('div');
+  el.className = 'skin-loading';
+  el.id = 'skin-loading-indicator';
+  el.innerHTML = `<div class="spin"></div><span>Processing skin archive…</span>`;
+  document.getElementById('skin-list-wrap').prepend(el);
+}
+function hideLoadingInPanel() {
+  document.getElementById('skin-loading-indicator')?.remove();
+}
+
+function showPatchHint() {
+  const ps = document.getElementById('patch-status');
+  const pl = document.getElementById('patch-label');
+  const pb = document.getElementById('patch-bar');
+  ps.style.display = 'block';
+  pl.textContent = 'Skin active — textures will replace on next area load';
+  pb.style.width = '100%';
+  pb.style.background = 'linear-gradient(90deg, var(--gold-dim), var(--gold))';
+  setTimeout(() => { ps.style.display = 'none'; }, 4000);
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('skin-status');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════════════
+// Original HK loader code (preserved)
+// ══════════════════════════════════════════════════════════════
+const lt=document.getElementById("loading-text"),
+      cv=document.getElementById("unity-canvas"),
+      mw=document.getElementById("unity-mobile-warning"),
+      tb=document.getElementById("toolbar");
+
+let lb=0;
+const tm='912.81';
+
+// FPS counter
+const fpsText = document.createElement("div");
+fpsText.style = `
+  position: fixed; top: 10px; left: 10px;
+  color: rgba(201,168,76,0.7);
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem; letter-spacing: 0.08em;
+  background: rgba(0,0,0,0.4);
+  padding: 4px 10px; border-radius: 6px;
+  z-index: 99999;
+`;
+fpsText.textContent = "FPS: —";
+document.body.appendChild(fpsText);
+
+// Keystroke display
+const keystrokeDisplay = document.createElement("div");
+keystrokeDisplay.style = `
+  position: fixed; top: 44px; left: 10px;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; min-height: 50px;
+  max-width: calc(100vw - 40px);
+  padding: 10px; border-radius: 14px;
+  background: rgba(0,0,0,0.38);
+  border: 1px solid rgba(201,168,76,0.1);
+  z-index: 99999;
+`;
+document.body.appendChild(keystrokeDisplay);
+
+const pressedKeys = new Set();
+document.addEventListener('keydown', e => { pressedKeys.add(e.key); updateKeystrokeDisplay(); });
+document.addEventListener('keyup', e => { pressedKeys.delete(e.key); updateKeystrokeDisplay(); });
+
+function updateKeystrokeDisplay() {
+  keystrokeDisplay.innerHTML = '';
+  Array.from(pressedKeys).forEach(key => {
+    const icon = document.createElement('img');
+    icon.src = makeKeyIcon(key);
+    icon.alt = key;
+    icon.style = `width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid rgba(201,168,76,0.2);box-shadow:0 10px 24px rgba(0,0,0,0.18);object-fit:contain;`;
+    keystrokeDisplay.appendChild(icon);
+  });
+}
+
+function prettyKeyName(key) {
+  if (key === ' ') return 'Space';
+  if (key === 'ArrowUp') return 'Arrow Up';
+  if (key === 'ArrowDown') return 'Arrow Down';
+  if (key === 'ArrowLeft') return 'Arrow Left';
+  if (key === 'ArrowRight') return 'Arrow Right';
+  return key.length === 1 ? key.toUpperCase() : key.replace(/^(.)/, s => s.toUpperCase());
+}
+
+function makeKeyIcon(key) {
+  const label = prettyKeyName(key);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a22"/>
+      <stop offset="100%" stop-color="#2a2a35"/>
+    </linearGradient></defs>
+    <rect x="6" y="6" width="108" height="108" rx="28" ry="28" fill="url(#g)" stroke="rgba(201,168,76,0.25)" stroke-width="4"/>
+    ${arrowIcon(label)}
+    <text x="60" y="70" text-anchor="middle" fill="#c9a84c" font-family="Cinzel, serif" font-size="44" font-weight="700">${svgText(label)}</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function arrowIcon(label) {
+  const arrows = {
+    'Arrow Up': '<path d="M60 28 L40 64 L52 64 L52 88 L68 88 L68 64 L80 64 Z" fill="#c9a84c" opacity="0.85"/>',
+    'Arrow Down': '<path d="M60 92 L40 56 L52 56 L52 32 L68 32 L68 56 L80 56 Z" fill="#c9a84c" opacity="0.85"/>',
+    'Arrow Left': '<path d="M28 60 L64 40 L64 52 L88 52 L88 68 L64 68 L64 80 Z" fill="#c9a84c" opacity="0.85"/>',
+    'Arrow Right': '<path d="M92 60 L56 40 L56 52 L32 52 L32 68 L56 68 L56 80 Z" fill="#c9a84c" opacity="0.85"/>'
+  };
+  return arrows[label] || '';
+}
+function svgText(label) {
+  if (/^Arrow/.test(label)) return '';
+  if (label.length > 2) return label.slice(0, 2);
+  return label;
+}
+
+let lastTime = performance.now();
+function updateFPS() {
+  const now = performance.now();
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+  fpsText.textContent = "FPS: " + Math.round(dt > 0 ? 1/dt : 60);
+  requestAnimationFrame(updateFPS);
+}
+
+if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+  const m = document.createElement('meta');
+  m.name = 'viewport';
+  m.content = 'width=device-width,height=device-height,initial-scale=1,user-scalable=no,shrink-to-fit=yes';
+  document.head.appendChild(m);
+  mw.style.display = "block";
+  setTimeout(() => mw.style.display = "none", 5000);
+}
+
+async function fwp(u) {
+  const r = await fetch(u),
+        rd = r.body.getReader(),
+        ch = [];
+  while (true) {
+    const { done, value } = await rd.read();
+    if (done) break;
+    lb += value.length;
+    ch.push(value);
+    lt.textContent = `${(lb/1048576).toFixed(2)} MB / ${tm} MB`;
+  }
+  return URL.createObjectURL(new Blob(ch));
+}
+async function mf(p) {
+  const b = await Promise.all(p.map(fwp)),
+        bl = await Promise.all(b.map(u => fetch(u).then(r => r.blob())));
+  return URL.createObjectURL(new Blob(bl));
+}
+function gp(f, s, e) {
+  return Array.from({ length: e - s + 1 }, (_, i) => `${f}.part${s + i}`);
+}
+
+(async () => {
+  const [du, wu] = await Promise.all([
+    mf(gp("Build/hktruffled.data", 1, 45)),
+    mf(gp("Build/hktruffled.wasm", 1, 2))
+  ]);
+  const sc = document.createElement("script");
+  sc.src = "Build/hktruffled.loader.js";
+  sc.onload = () => {
+    const config = {
+      dataUrl: du,
+      frameworkUrl: "Build/hktruffled.framework.js",
+      codeUrl: wu,
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Team Cherry",
+      productName: "Hollow Knight",
+      productVersion: "1.0",
+      memory: 384 * 1024 * 1024,
+      useWebGL2: true,
+      webglContextAttributes: {
+        antialias: false, alpha: false, depth: true,
+        stencil: false, premultipliedAlpha: false,
+        preserveDrawingBuffer: false, desynchronized: true
+      }
+    };
+    createUnityInstance(cv, config).then(() => {
+      lt.remove();
+      asb(); asib();
+      updateFPS();
+    }).catch(alert);
+  };
+  document.body.appendChild(sc);
+})();
+
+// Save/load buttons
+function asb() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Download Save";
+  btn.onclick = savedownload;
+  tb.appendChild(btn);
+}
+function savedownload() {
+  const slot = prompt("Which slot do you want to export? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+  const openReq = indexedDB.open("/idbfs");
+  openReq.onsuccess = e => {
+    const db = e.target.result;
+    const tx = db.transaction("FILE_DATA", "readonly");
+    const store = tx.objectStore("FILE_DATA");
+    store.getAllKeys().onsuccess = ev => {
+      const keys = ev.target.result;
+      if (!keys.length) { alert("No save data found."); return; }
+      const currentHash = keys[0].split("/")[2];
+      const key = `/idbfs/${currentHash}/user${slot}.dat`;
+      store.get(key).onsuccess = ev2 => {
+        const entry = ev2.target.result;
+        if (!entry) { alert(`Slot ${slot} is empty.`); return; }
+        const blob = new Blob([entry.contents], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `user${slot}.dat`; a.click();
+        URL.revokeObjectURL(url);
+      };
+    };
+  };
+}
+function asib() {
+  const btn = document.createElement("button");
+  btn.className = "savebtn";
+  btn.textContent = "Import Save";
+  btn.onclick = () => input.click();
+  tb.appendChild(btn);
+}
+const input = document.createElement("input");
+input.type = "file"; input.accept = ".dat"; input.style.display = "none";
+document.body.appendChild(input);
+input.onchange = () => {
+  const file = input.files[0];
+  if (!file) return;
+  const slot = prompt("Import into which slot? (1–4)");
+  if (!slot || slot < 1 || slot > 4) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const bytes = new Uint8Array(reader.result);
+    const req = indexedDB.open("/idbfs");
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction("FILE_DATA", "readwrite");
+      const store = tx.objectStore("FILE_DATA");
+      store.getAllKeys().onsuccess = ev => {
+        const keys = ev.target.result;
+        if (!keys.length) { console.error("No keys found"); return; }
+        const currentHash = keys[0].split("/")[2];
+        const key = `/idbfs/${currentHash}/user${slot}.dat`;
+        store.put({ timestamp: new Date().toISOString(), mode: 33206, contents: bytes }, key)
+          .onsuccess = () => alert(`Save imported into Slot ${slot}. Refresh the page.`);
+      };
+    };
+  };
+  reader.readAsArrayBuffer(file);
+};
+</script>
+</body>
+</html>
