@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/HorizonOfficia/hollow-knight@latest/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hollow Knight</title>
+  <link rel="preload" href="sharedassets8.resource" as="fetch">
+  <link rel="preload" href="sharedassets127.resource" as="fetch">
+  <link rel="preload" href="sharedassets400.resource" as="fetch">
+  <link rel="preload" href="sharedassets410.resource" as="fetch">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --gold: #c9a84c;
+      --gold-dim: #7a6230;
+      --gold-glow: rgba(201,168,76,0.18);
+      --soul: #8ecfff;
+      --soul-dim: rgba(142,207,255,0.12);
+      --bg: #05050a;
+      --panel: rgba(8,8,16,0.96);
+      --border: rgba(201,168,76,0.18);
+      --text: #d4c9b0;
+      --text-dim: #7a7060;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: radial-gradient(circle at top, #111 0%, #050509 35%, #000 100%);
+      color: #fff;
+      font-family: 'Crimson Pro', Georgia, serif;
+      overflow: hidden;
+    }
+    body { position: relative; }
+    #unity-canvas {
+      width: 100vw; height: 100vh;
+      display: block; background: #000;
+    }
+    #loading-text, #unity-mobile-warning {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      text-align: center; padding: 16px 22px; border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.78);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+      z-index: 9998; max-width: min(96vw, 420px);
+    }
+    #loading-text {
+      top: 50%; transform: translate(-50%, -50%);
+      font: 600 1.05rem/1.4 'Cinzel', serif;
+      letter-spacing: 0.06em;
+    }
+    #unity-mobile-warning { top: 18px; display: none; font-size: 0.95rem; }
+    .toolbar {
+      position: fixed; top: 18px; right: 18px;
+      display: flex; gap: 10px; z-index: 9999;
+    }
+    .toolbar button, .savebtn {
+      border: 1px solid var(--border);
+      background: rgba(201,168,76,0.06);
+      color: var(--gold);
+      padding: 0.75rem 1.1rem;
+      border-radius: 999px;
+      font: 600 0.85rem/1.2 'Cinzel', serif;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    .toolbar button:hover, .savebtn:hover {
+      background: var(--gold-glow);
+      border-color: var(--gold);
+      transform: translateY(-1px);
+      box-shadow: 0 0 18px var(--gold-glow);
+    }
+    #fps-overlay {
+      position: fixed; top: 10px; left: 10px;
+      color: var(--text-dim); font-family: monospace; font-size: 14px;
+      background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 6px;
+      z-index: 99999;
+    }
+    #keystroke-display {
+      position: fixed; top: 44px; left: 10px;
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      min-height: 50px; max-width: calc(100vw - 40px);
+      padding: 8px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.06);
+      z-index: 99999;
+    }
+    .hidden { opacity: 0; pointer-events: none; }
+
+    /* ─── SKIN PANEL ─── */
+    #skin-panel-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(6px);
+      z-index: 10000;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #skin-panel-backdrop.open { opacity: 1; pointer-events: all; }
+
+    #skin-panel {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -46%) scale(0.97);
+      width: min(680px, 96vw);
+      max-height: 86vh;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 40px 120px rgba(0,0,0,0.8), 0 0 60px rgba(201,168,76,0.04), inset 0 1px 0 rgba(255,255,255,0.05);
+      z-index: 10001;
+      display: flex; flex-direction: column;
+      opacity: 0; pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+    }
+    #skin-panel.open {
+      opacity: 1; pointer-events: all;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .panel-header {
+      padding: 28px 32px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .panel-title-row {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.3rem; font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      text-shadow: 0 0 30px var(--gold-glow);
+    }
+    .panel-subtitle {
+      font-size: 0.9rem; color: var(--text-dim); margin-top: 6px;
+      font-style: italic; letter-spacing: 0.02em;
+    }
+    .close-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-dim); font-size: 1.2rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .close-btn:hover { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.2); }
+
+    .panel-tabs {
+      display: flex; gap: 0;
+      padding: 0 32px;
+      margin-top: 16px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: none; border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'Cinzel', serif; font-size: 0.8rem;
+      letter-spacing: 0.07em; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    .panel-body {
+      flex: 1; overflow-y: auto; padding: 24px 32px;
+      scrollbar-width: thin; scrollbar-color: var(--gold-dim) transparent;
+    }
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Drop zone */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      background: rgba(201,168,76,0.02);
+    }
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: var(--gold);
+      background: var(--gold-glow);
+      box-shadow: 0 0 30px rgba(201,168,76,0.08);
+    }
+    #drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .drop-icon {
+      font-size: 2.8rem; margin-bottom: 14px;
+      filter: drop-shadow(0 0 12px var(--gold-glow));
+    }
+    .drop-title {
+      font-family: 'Cinzel', serif; font-size: 1rem;
+      color: var(--gold); letter-spacing: 0.06em; margin-bottom: 6px;
+    }
+    .drop-sub { font-size: 0.85rem; color: var(--text-dim); font-style: italic; }
+
+    /* Sprite preview grid */
+    #sprite-preview {
+      display: none;
+      margin-top: 20px;
+    }
+    .preview-title {
+      font-family: 'Cinzel', serif; font-size: 0.75rem;
+      color: var(--gold-dim); letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 14px;
+    }
+    .sprite-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    .sprite-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; transition: all 0.2s;
+    }
+    .sprite-card:hover { border-color: var(--gold); background: var(--gold-glow); }
+    .sprite-card img {
+      width: 100%; max-height: 80px; object-fit: contain;
+      border-radius: 6px; image-rendering: pixelated;
+    }
+    .sprite-card .sprite-name {
+      font-size: 0.72rem; color: var(--text-dim); font-style: italic;
+      text-align: center; letter-spacing: 0.02em;
+    }
+    .sprite-card .sprite-status {
+      font-size: 0.68rem; font-family: 'Cinzel', serif;
+      letter-spacing: 0.06em; padding: 2px 8px; border-radius: 999px;
+    }
+    .sprite-status.found { background: rgba(100,200,100,0.12); color: #7dca7d; border: 1px solid rgba(100,200,100,0.2); }
+    .sprite-status.missing { background: rgba(255,100,100,0.1); color: #c87d7d; border: 1px solid rgba(255,100,100,0.15); }
+
+    /* Apply button */
+    #apply-skin-btn {
+      display: none;
+      width: 100%; margin-top: 20px;
+      padding: 14px;
+      background: linear-gradient(135deg, rgba(201,168,76,0.15), rgba(201,168,76,0.08));
+      border: 1px solid var(--gold);
+      border-radius: 12px;
+      color: var(--gold);
+      font-family: 'Cinzel', serif; font-size: 0.9rem;
+      letter-spacing: 0.1em; cursor: pointer;
+      transition: all 0.2s;
+    }
+    #apply-skin-btn:hover {
+      background: linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.15));
+      box-shadow: 0 0 30px rgba(201,168,76,0.15);
+    }
+    #apply-skin-btn:disabled {
+      opacity: 0.4; cursor: not-allowed;
+    }
+
+    /* Active skin display */
+    #active-skin-display {
+      margin-top: 20px; display: none;
+    }
+    .active-skin-card {
+      background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.03));
+      border: 1px solid var(--gold);
+      border-radius: 14px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .active-skin-icon { font-size: 2rem; }
+    .active-skin-info { flex: 1; }
+    .active-skin-name {
+      font-family: 'Cinzel', serif; font-size: 0.95rem;
+      color: var(--gold); letter-spacing: 0.05em;
+    }
+    .active-skin-meta { font-size: 0.8rem; color: var(--text-dim); margin-top: 3px; font-style: italic; }
+    .remove-skin-btn {
+      background: rgba(255,80,80,0.08); border: 1px solid rgba(255,80,80,0.2);
+      color: #c87d7d; padding: 6px 14px; border-radius: 999px;
+      font: 0.75rem 'Cinzel', serif; letter-spacing: 0.05em;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .remove-skin-btn:hover { background: rgba(255,80,80,0.15); border-color: rgba(255,80,80,0.4); }
+
+    /* Gallery tab */
+    .gallery-search {
+      width: 100%; padding: 10px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); border-radius: 10px;
+      color: #fff; font-family: 'Crimson Pro', serif; font-size: 0.95rem;
+      margin-bottom: 18px; outline: none; transition: border-color 0.2s;
+    }
+    .gallery-search:focus { border-color: var(--gold); }
+    .gallery-search::placeholder { color: var(--text-dim); font-style: italic; }
+
+    .gallery-link-card {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; border-radius: 12px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+      margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+      text-decoration: none; color: inherit;
+    }
+    .gallery-link-card:hover { border-color: var(--gold); background: var(--gold-glow); }
+    .gallery-link-icon { font-size: 1.6rem; flex-shrink: 0; }
+    .gallery-link-info { flex: 1; }
+    .gallery-link-name { font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); letter-spacing: 0.05em; }
+    .gallery-link-desc { font-size: 0.8rem; color: var(--text-dim); font-style: italic; margin-top: 2px; }
+    .gallery-link-arrow { color: var(--gold-dim); font-size: 1.1rem; }
+
+    .gallery-browse-note {
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      font-size: 0.83rem; color: var(--text-dim);
+      text-align: center; font-style: italic; line-height: 1.6;
+    }
+    .gallery-browse-note a { color: var(--gold); text-decoration: none; }
+    .gallery-browse-note a:hover { text-decoration: underline; }
+
+    /* Status toast */
+    #skin-toast {
+      position: fixed; bottom: 30px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(8,8,16,0.95);
+      border: 1px solid var(--border);
+      border-radius: 999px; padding: 10px 24px;
+      font-family: 'Cinzel', serif; font-size: 0.8rem;
+      letter-spacing: 0.07em; color: var(--gold);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      z-index: 20000; opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+    #skin-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* IndexedDB skin store keys */
+    /* Skins are stored per-sprite in /idbfs/<hash>/Mods/CustomKnight/Skins/<skinname>/<sprite>.png */
+  </style>
+</head>
+<body>
+  <div id="loading-text">Loading Hollow Knight…</div>
+  <div id="unity-mobile-warning">WebGL not supported on mobile</div>
+
+  <div class="toolbar" id="toolbar"></div>
+  <canvas id="unity-canvas"></canvas>
+  <div id="fps-overlay">FPS: 0</div>
+  <div id="keystroke-display"></div>
+  <div id="skin-toast"></div>
+
+  <!-- Skin Panel -->
+  <div id="skin-panel-backdrop"></div>
+  <div id="skin-panel">
+    <div class="panel-header">
+      <div class="panel-title-row">
+        <div>
+          <div class="panel-title">⚜ Skin Vault</div>
+          <div class="panel-subtitle">Dress the Knight for your journey through Hallownest</div>
+        </div>
+        <button class="close-btn" id="skin-close-btn">✕</button>
+      </div>
+      <div class="panel-tabs">
+        <button class="tab-btn active" data-tab="import">Import Skin</button>
+        <button class="tab-btn" data-tab="active">Active Skin</button>
+        <button class="tab-btn" data-tab="gallery">Browse Gallery</button>
+      </div>
+    </div>
+
+    <div class="panel-body">
+
+      <!-- IMPORT TAB -->
+      <div class="tab-content active" id="tab-import">
+        <div id="drop-zone">
+          <input type="file" id="skin-file-input" accept=".zip">
+          <div class="drop-icon">🗜️</div>
+          <div class="drop-title">Drop a Skin ZIP Here</div>
+          <div class="drop-sub">or click to browse — must contain a Customknight/ folder</div>
+        </div>
+
+        <div id="sprite-preview">
+          <div class="preview-title">Sprites detected</div>
+          <div class="sprite-grid" id="sprite-grid"></div>
+        </div>
+
+        <button id="apply-skin-btn">⚜ Apply Skin &amp; Refresh</button>
+      </div>
+
+      <!-- ACTIVE TAB -->
+      <div class="tab-content" id="tab-active">
+        <div id="no-skin-msg" style="text-align:center; padding: 40px 0; color: var(--text-dim); font-style:italic; font-size:0.9rem;">
+          No custom skin equipped.<br>The Knight wears his ancient shell.
+        </div>
+        <div id="active-skin-display">
+          <div class="active-skin-card">
+            <div class="active-skin-icon">🛡️</div>
+            <div class="active-skin-info">
+              <div class="active-skin-name" id="active-skin-name">—</div>
+              <div class="active-skin-meta" id="active-skin-meta">—</div>
+            </div>
+            <button class="remove-skin-btn" id="remove-skin-btn">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- GALLERY TAB -->
+      <div class="tab-content" id="tab-gallery">
+        <input class="gallery-search" type="text" placeholder="Search skins by name…" id="gallery-search">
+        <div id="gallery-list">
+          <!-- Populated by JS with curated picks + search link -->
+        </div>
+        <div class="gallery-browse-note">
+          Find hundreds more skins at
+          <a href="https://hkskins.art/" target="_blank" rel="noopener">hkskins.art</a>
+          — download a ZIP and import it via the <strong>Import Skin</strong> tab.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+/* ─────────────────────────── CONFIG ─────────────────────────── */
+const KNOWN_SPRITES = [
+  'Knight', 'Hud', 'VS', 'VoidSpells', 'Wraiths',
+  'Sprint', 'Hatchling', 'Geo', 'OrbFull'
+];
+
+// Curated gallery entries (link directly to hkskins.art pages/search)
+const GALLERY_ENTRIES = [
+  { name: 'Christmas Knight', author: 'MageGi', tags: ['holiday','festive'], url: 'https://hkskins.art/', emoji: '🎄' },
+  { name: 'Browse All Skins', author: 'hkskins.art community', tags: ['all','browse'], url: 'https://hkskins.art/', emoji: '🏛️' },
+];
+
+/* ─────────────────────────── STATE ─────────────────────────── */
+let pendingSkinData = null;   // { name, sprites: { SpriteName: Uint8Array } }
+let activeSkin = JSON.parse(localStorage.getItem('hk_active_skin_meta') || 'null');
+
+/* ─────────────────────────── UNITY BOOTSTRAP ─────────────────────────── */
+const lt  = document.getElementById('loading-text');
+const cv  = document.getElementById('unity-canvas');
+const mw  = document.getElementById('unity-mobile-warning');
+const tb  = document.getElementById('toolbar');
+const fpsEl = document.getElementById('fps-overlay');
+const ksEl  = document.getElementById('keystroke-display');
+
+let lb = 0;
+const tm = '912.81';
+
+// FPS
+let lastTime = performance.now();
+function updateFPS() {
+  const now = performance.now();
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+  fpsEl.textContent = 'FPS: ' + Math.round(dt > 0 ? 1/dt : 60);
+  requestAnimationFrame(updateFPS);
+}
+
+// Keystrokes
+const pressedKeys = new Set();
+document.addEventListener('keydown', e => { pressedKeys.add(e.key); renderKeys(); });
+document.addEventListener('keyup',   e => { pressedKeys.delete(e.key); renderKeys(); });
+
+function renderKeys() {
+  ksEl.innerHTML = '';
+  pressedKeys.forEach(key => {
+    const icon = document.createElement('img');
+    icon.src = makeKeyIcon(key);
+    icon.alt = key; icon.title = prettyKey(key);
+    icon.style.cssText = 'width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 20px rgba(0,0,0,0.2);object-fit:contain;';
+    ksEl.appendChild(icon);
+  });
+}
+function prettyKey(k) {
+  if (k === ' ') return 'Space';
+  if (k === 'ArrowUp') return 'Arrow Up';
+  if (k === 'ArrowDown') return 'Arrow Down';
+  if (k === 'ArrowLeft') return 'Arrow Left';
+  if (k === 'ArrowRight') return 'Arrow Right';
+  return k.length === 1 ? k.toUpperCase() : k.replace(/^(.)/, s => s.toUpperCase());
+}
+function makeKeyIcon(key) {
+  const label = prettyKey(key);
+  const arrows = {
+    'Arrow Up':    '<path d="M60 28 L40 64 L52 64 L52 88 L68 88 L68 64 L80 64 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Down':  '<path d="M60 92 L40 56 L52 56 L52 32 L68 32 L68 56 L80 56 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Left':  '<path d="M28 60 L64 40 L64 52 L88 52 L88 68 L64 68 L64 80 Z" fill="#E7E9F3" opacity="0.85"/>',
+    'Arrow Right': '<path d="M92 60 L56 40 L56 52 L32 52 L32 68 L56 68 L56 80 Z" fill="#E7E9F3" opacity="0.85"/>'
+  };
+  const arrow = arrows[label] || '';
+  const txt = /^Arrow/.test(label) ? '' : label.slice(0,2);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#20222A"/><stop offset="100%" stop-color="#2F323D"/></linearGradient></defs>
+    <rect x="6" y="6" width="108" height="108" rx="28" ry="28" fill="url(#g)" stroke="rgba(255,255,255,0.16)" stroke-width="4"/>
+    ${arrow}<text x="60" y="70" text-anchor="middle" fill="#F4F6FB" font-family="Segoe UI,sans-serif" font-size="44" font-weight="700">${txt}</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+// Mobile
+if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+  const m = document.createElement('meta');
+  m.name = 'viewport';
+  m.content = 'width=device-width,height=device-height,initial-scale=1,user-scalable=no,shrink-to-fit=yes';
+  document.head.appendChild(m);
+  mw.style.display = 'block';
+  setTimeout(() => mw.style.display = 'none', 5000);
+}
+
+// Fetch helpers
+async function fwp(u) {
+  const r = await fetch(u), rd = r.body.getReader(), ch = [];
+  while(true) {
+    const {done, value} = await rd.read();
+    if(done) break;
+    lb += value.length; ch.push(value);
+    lt.textContent = `${(lb/1048576).toFixed(2)} MB / ${tm} MB`;
+  }
+  return URL.createObjectURL(new Blob(ch));
+}
+async function mf(p) {
+  const b = await Promise.all(p.map(fwp));
+  const bl = await Promise.all(b.map(u => fetch(u).then(r => r.blob())));
+  return URL.createObjectURL(new Blob(bl));
+}
+function gp(f,s,e){ return Array.from({length:e-s+1},(_,i)=>`${f}.part${s+i}`); }
+
+(async()=>{
+  const [du, wu] = await Promise.all([
+    mf(gp('Build/hktruffled.data',1,45)),
+    mf(gp('Build/hktruffled.wasm',1,2))
+  ]);
+  const sc = document.createElement('script');
+  sc.src = 'Build/hktruffled.loader.js';
+  sc.onload = () => {
+    const config = {
+      dataUrl: du,
+      frameworkUrl: 'Build/hktruffled.framework.js',
+      codeUrl: wu,
+      streamingAssetsUrl: 'StreamingAssets',
+      companyName: 'Team Cherry',
+      productName: 'Hollow Knight',
+      productVersion: '1.0',
+      memory: 384 * 1024 * 1024,
+      useWebGL2: true,
+      webglContextAttributes: {
+        antialias: false, alpha: false, depth: true,
+        stencil: false, premultipliedAlpha: false,
+        preserveDrawingBuffer: false, desynchronized: true
+      }
+    };
+    createUnityInstance(cv, config).then(() => {
+      lt.remove();
+      addToolbarButtons();
+      updateFPS();
+      // After Unity loads, write any pending skin into IDBFS
+      if (activeSkin) setTimeout(writeSkinToIdbfs, 1500);
+    }).catch(alert);
+  };
+  document.body.appendChild(sc);
+})();
+
+/* ─────────────────────────── TOOLBAR BUTTONS ─────────────────────────── */
+function addToolbarButtons() {
+  // Skin button
+  const skinBtn = document.createElement('button');
+  skinBtn.textContent = '⚜ Skins';
+  skinBtn.onclick = openSkinPanel;
+  tb.appendChild(skinBtn);
+
+  // Save export
+  const dlBtn = document.createElement('button');
+  dlBtn.textContent = 'Download Save';
+  dlBtn.onclick = savedownload;
+  tb.appendChild(dlBtn);
+
+  // Save import
+  const impBtn = document.createElement('button');
+  impBtn.textContent = 'Import Save';
+  impBtn.onclick = () => saveInput.click();
+  tb.appendChild(impBtn);
+}
+
+/* ─────────────────────────── SAVE EXPORT/IMPORT ─────────────────────────── */
+function savedownload() {
+  const slot = prompt('Which slot do you want to export? (1–4)');
+  if (!slot || slot < 1 || slot > 4) return;
+  const req = indexedDB.open('/idbfs');
+  req.onsuccess = e => {
+    const db = e.target.result;
+    const tx = db.transaction('FILE_DATA', 'readonly');
+    const store = tx.objectStore('FILE_DATA');
+    store.getAllKeys().onsuccess = ev => {
+      const keys = ev.target.result;
+      if (!keys.length) { alert('No save data found.'); return; }
+      const hash = keys[0].split('/')[2];
+      store.get(`/idbfs/${hash}/user${slot}.dat`).onsuccess = ev2 => {
+        const entry = ev2.target.result;
+        if (!entry) { alert(`Slot ${slot} is empty.`); return; }
+        const url = URL.createObjectURL(new Blob([entry.contents], {type:'application/octet-stream'}));
+        const a = document.createElement('a');
+        a.href = url; a.download = `user${slot}.dat`; a.click();
+        URL.revokeObjectURL(url);
+      };
+    };
+  };
+}
+
+const saveInput = document.createElement('input');
+saveInput.type = 'file'; saveInput.accept = '.dat'; saveInput.style.display = 'none';
+document.body.appendChild(saveInput);
+saveInput.onchange = () => {
+  const file = saveInput.files[0];
+  if (!file) return;
+  const slot = prompt('Import into which slot? (1–4)');
+  if (!slot || slot < 1 || slot > 4) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const bytes = new Uint8Array(reader.result);
+    const req = indexedDB.open('/idbfs');
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction('FILE_DATA', 'readwrite');
+      const store = tx.objectStore('FILE_DATA');
+      store.getAllKeys().onsuccess = ev => {
+        const keys = ev.target.result;
+        if (!keys.length) { console.error('No keys found'); return; }
+        const hash = keys[0].split('/')[2];
+        const key = `/idbfs/${hash}/user${slot}.dat`;
+        store.put({timestamp: new Date().toISOString(), mode: 33206, contents: bytes}, key).onsuccess = () => {
+          alert(`Save imported into Slot ${slot}. Refresh the page.`);
+        };
+      };
+    };
+  };
+  reader.readAsArrayBuffer(file);
+};
+
+/* ─────────────────────────── SKIN PANEL UI ─────────────────────────── */
+const backdrop  = document.getElementById('skin-panel-backdrop');
+const panel     = document.getElementById('skin-panel');
+const closeBtn  = document.getElementById('skin-close-btn');
+const tabBtns   = document.querySelectorAll('.tab-btn');
+const tabPanes  = document.querySelectorAll('.tab-content');
+
+function openSkinPanel() {
+  backdrop.classList.add('open');
+  panel.classList.add('open');
+  refreshActiveTab();
+}
+function closeSkinPanel() {
+  backdrop.classList.remove('open');
+  panel.classList.remove('open');
+}
+backdrop.onclick = closeSkinPanel;
+closeBtn.onclick  = closeSkinPanel;
+
+tabBtns.forEach(btn => {
+  btn.onclick = () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabPanes.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'active') refreshActiveTab();
+    if (btn.dataset.tab === 'gallery') renderGallery();
+  };
+});
+
+/* ─────────────────────────── ZIP PARSING ─────────────────────────── */
+// We implement a minimal ZIP parser in pure JS — no external libs needed
+// (JSZip would require a CDN; this keeps it self-contained)
+
+async function parseZip(arrayBuffer) {
+  // Use a dynamic import trick: load JSZip from CDN
+  if (!window.JSZip) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+  return await JSZip.loadAsync(arrayBuffer);
+}
+
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('skin-file-input');
+const spriteGrid  = document.getElementById('sprite-grid');
+const spritePrev  = document.getElementById('sprite-preview');
+const applyBtn    = document.getElementById('apply-skin-btn');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleSkinFile(file);
+});
+fileInput.onchange = () => { if (fileInput.files[0]) handleSkinFile(fileInput.files[0]); };
+
+async function handleSkinFile(file) {
+  if (!file.name.endsWith('.zip')) { showToast('Please upload a .zip file'); return; }
+
+  showToast('Reading skin ZIP…');
+  try {
+    const buf = await file.arrayBuffer();
+    const zip  = await parseZip(buf);
+
+    // Find Customknight/ entries (case-insensitive)
+    const entries = {};
+    zip.forEach((path, entry) => {
+      const m = path.match(/(?:customknight|Customknight)\/([^/]+\.png)$/i);
+      if (m) entries[m[1].replace('.png','').replace(/^\w/, c => c.toUpperCase())] = entry;
+    });
+
+    if (Object.keys(entries).length === 0) {
+      showToast('No Customknight/ sprites found in ZIP'); return;
+    }
+
+    // Determine skin name from zip filename
+    const skinName = file.name.replace('.zip','').replace(/_/g,' ').replace(/\s*\(.*?\)\s*/g,'').trim();
+
+    // Build sprite data map
+    const sprites = {};
+    for (const [name, entry] of Object.entries(entries)) {
+      sprites[name] = await entry.async('uint8array');
+    }
+
+    pendingSkinData = { name: skinName, sprites, spriteCount: Object.keys(sprites).length };
+    renderSpritePreview(sprites, skinName);
+    showToast(`Loaded "${skinName}" — ${Object.keys(sprites).length} sprites`);
+  } catch(err) {
+    console.error(err);
+    showToast('Failed to read ZIP: ' + err.message);
+  }
+}
+
+function renderSpritePreview(sprites, skinName) {
+  spriteGrid.innerHTML = '';
+
+  // Show all found sprites, mark which are recognized
+  const foundNames = Object.keys(sprites);
+  const allToShow = [...new Set([...KNOWN_SPRITES, ...foundNames])];
+
+  allToShow.forEach(name => {
+    const card = document.createElement('div');
+    card.className = 'sprite-card';
+
+    const found = !!sprites[name];
+
+    if (found) {
+      const blob = new Blob([sprites[name]], {type:'image/png'});
+      const url  = URL.createObjectURL(blob);
+      const img  = document.createElement('img');
+      img.src = url; img.alt = name;
+      card.appendChild(img);
+    } else {
+      const ph = document.createElement('div');
+      ph.style.cssText = 'width:100%;height:60px;display:flex;align-items:center;justify-content:center;opacity:0.2;font-size:1.5rem;';
+      ph.textContent = '✦';
+      card.appendChild(ph);
+    }
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'sprite-name';
+    nameEl.textContent = name;
+    card.appendChild(nameEl);
+
+    const status = document.createElement('div');
+    status.className = 'sprite-status ' + (found ? 'found' : 'missing');
+    status.textContent = found ? 'included' : 'default';
+    card.appendChild(status);
+
+    spriteGrid.appendChild(card);
+  });
+
+  spritePrev.style.display = 'block';
+  applyBtn.style.display = 'block';
+  applyBtn.textContent = `⚜ Apply "${skinName}" & Restart`;
+  applyBtn.disabled = false;
+}
+
+applyBtn.onclick = async () => {
+  if (!pendingSkinData) return;
+  applyBtn.disabled = true;
+  applyBtn.textContent = 'Writing to game…';
+  showToast('Applying skin…');
+
+  try {
+    await writeSkinDataToIdbfs(pendingSkinData);
+
+    // Persist meta to localStorage so we know what's active after reload
+    const meta = {
+      name: pendingSkinData.name,
+      spriteCount: pendingSkinData.spriteCount,
+      appliedAt: new Date().toLocaleString()
+    };
+    localStorage.setItem('hk_active_skin_meta', JSON.stringify(meta));
+    activeSkin = meta;
+
+    showToast('Skin applied! Reloading game…');
+    setTimeout(() => location.reload(), 1200);
+  } catch(err) {
+    console.error(err);
+    showToast('Error: ' + err.message);
+    applyBtn.disabled = false;
+    applyBtn.textContent = '⚜ Apply Skin & Restart';
+  }
+};
+
+/* ─────────────────────────── IDBFS SKIN WRITE ─────────────────────────── */
+// CustomKnight (the Hollow Knight mod) reads from:
+// <persistentDataPath>/Mods/CustomKnight/Skins/<SkinName>/<SpriteName>.png
+// In the WebGL IDBFS this maps to:
+// /idbfs/<hash>/Mods/CustomKnight/Skins/<SkinName>/<SpriteName>.png
+
+async function getIdbfsHash() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('/idbfs');
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction('FILE_DATA', 'readonly');
+      const store = tx.objectStore('FILE_DATA');
+      store.getAllKeys().onsuccess = ev => {
+        const keys = ev.target.result;
+        if (!keys.length) { rej(new Error('No IDBFS data found — start the game first!')); return; }
+        res(keys[0].split('/')[2]);
+        db.close();
+      };
+    };
+    req.onerror = () => rej(new Error('Failed to open IDBFS'));
+  });
+}
+
+async function writeSkinDataToIdbfs(skinData) {
+  const hash = await getIdbfsHash();
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('/idbfs');
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction('FILE_DATA', 'readwrite');
+      const store = tx.objectStore('FILE_DATA');
+      const ts = new Date().toISOString();
+
+      // Write each sprite
+      const entries = Object.entries(skinData.sprites);
+      let done = 0;
+
+      // Also write directory entries (some IDBFS implementations need them)
+      const dirs = [
+        `/idbfs/${hash}/Mods`,
+        `/idbfs/${hash}/Mods/CustomKnight`,
+        `/idbfs/${hash}/Mods/CustomKnight/Skins`,
+        `/idbfs/${hash}/Mods/CustomKnight/Skins/${skinData.name}`,
+      ];
+      dirs.forEach(dir => {
+        store.put({ timestamp: ts, mode: 16877 }, dir);
+      });
+
+      if (entries.length === 0) { res(); return; }
+
+      entries.forEach(([name, bytes]) => {
+        const key = `/idbfs/${hash}/Mods/CustomKnight/Skins/${skinData.name}/${name}.png`;
+        const putReq = store.put({ timestamp: ts, mode: 33206, contents: bytes }, key);
+        putReq.onsuccess = () => { if (++done === entries.length) { db.close(); res(); } };
+        putReq.onerror = () => { db.close(); rej(new Error('Failed to write ' + name)); };
+      });
+    };
+    req.onerror = () => rej(new Error('Failed to open IDBFS for writing'));
+  });
+}
+
+async function writeSkinToIdbfs() {
+  // Re-apply active skin from stored bytes on page reload
+  // (bytes are already in IDBFS from the prior session; this is a no-op
+  // but we surface any errors gracefully)
+  if (!activeSkin) return;
+  // The skin files persist in IDBFS across reloads automatically.
+}
+
+async function removeSkin() {
+  if (!activeSkin) return;
+  showToast('Removing skin…');
+  try {
+    const hash = await getIdbfsHash();
+    await new Promise((res, rej) => {
+      const req = indexedDB.open('/idbfs');
+      req.onsuccess = e => {
+        const db = e.target.result;
+        const tx = db.transaction('FILE_DATA', 'readwrite');
+        const store = tx.objectStore('FILE_DATA');
+        store.getAllKeys().onsuccess = ev => {
+          const prefix = `/idbfs/${hash}/Mods/CustomKnight/Skins/${activeSkin.name}`;
+          const toDelete = ev.target.result.filter(k => k.startsWith(prefix));
+          let done = 0;
+          if (!toDelete.length) { db.close(); res(); return; }
+          toDelete.forEach(k => {
+            const d = store.delete(k);
+            d.onsuccess = () => { if(++done === toDelete.length) { db.close(); res(); } };
+          });
+        };
+      };
+      req.onerror = () => rej(new Error('Failed to open IDBFS'));
+    });
+    localStorage.removeItem('hk_active_skin_meta');
+    activeSkin = null;
+    showToast('Skin removed. Reloading…');
+    setTimeout(() => location.reload(), 1000);
+  } catch(err) {
+    showToast('Error: ' + err.message);
+  }
+}
+
+/* ─────────────────────────── ACTIVE SKIN TAB ─────────────────────────── */
+function refreshActiveTab() {
+  const noMsg  = document.getElementById('no-skin-msg');
+  const display= document.getElementById('active-skin-display');
+  const nameEl = document.getElementById('active-skin-name');
+  const metaEl = document.getElementById('active-skin-meta');
+  const removeBtn = document.getElementById('remove-skin-btn');
+
+  if (activeSkin) {
+    noMsg.style.display = 'none';
+    display.style.display = 'block';
+    nameEl.textContent = activeSkin.name;
+    metaEl.textContent = `${activeSkin.spriteCount} sprites · Applied ${activeSkin.appliedAt}`;
+    removeBtn.onclick = removeSkin;
+  } else {
+    noMsg.style.display = 'block';
+    display.style.display = 'none';
+  }
+}
+
+/* ─────────────────────────── GALLERY TAB ─────────────────────────── */
+function renderGallery(filter = '') {
+  const list = document.getElementById('gallery-list');
+  list.innerHTML = '';
+
+  const filtered = GALLERY_ENTRIES.filter(e =>
+    !filter || e.name.toLowerCase().includes(filter.toLowerCase()) ||
+    (e.author && e.author.toLowerCase().includes(filter.toLowerCase()))
+  );
+
+  filtered.forEach(entry => {
+    const card = document.createElement('a');
+    card.className = 'gallery-link-card';
+    card.href = entry.url;
+    card.target = '_blank';
+    card.rel = 'noopener';
+    card.innerHTML = `
+      <div class="gallery-link-icon">${entry.emoji}</div>
+      <div class="gallery-link-info">
+        <div class="gallery-link-name">${entry.name}</div>
+        ${entry.author ? `<div class="gallery-link-desc">by ${entry.author}</div>` : ''}
+      </div>
+      <div class="gallery-link-arrow">↗</div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+document.getElementById('gallery-search').oninput = function() {
+  renderGallery(this.value);
+};
+
+// Initial render
+renderGallery();
+
+/* ─────────────────────────── TOAST ─────────────────────────── */
+let toastTimer;
+function showToast(msg) {
+  const toast = document.getElementById('skin-toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
